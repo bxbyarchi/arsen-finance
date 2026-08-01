@@ -3,8 +3,10 @@ import { GoogleGenAI } from "@google/genai";
 import { db, debtsTable, expensesTable, incomesTable, profileTable } from "@workspace/db";
 
 const router = Router();
-
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
+
+const fmtSom = (val: number) =>
+  new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(val)) + " сом";
 
 interface Optimization {
   title: string;
@@ -12,13 +14,11 @@ interface Optimization {
   estimatedMonthlySaving: number;
   urgency: "critical" | "high" | "medium" | "low";
 }
-
 interface RiskAlert {
   title: string;
   description: string;
   severity: "critical" | "warning" | "info";
 }
-
 interface AnalysisResult {
   optimizations: Optimization[];
   riskAlerts: RiskAlert[];
@@ -26,7 +26,7 @@ interface AnalysisResult {
   summary: string;
 }
 
-// POST /ai/analyze - Gemini-powered financial analysis
+// POST /ai/analyze
 router.post("/ai/analyze", async (req, res) => {
   const [debts, expenses, incomes, profiles] = await Promise.all([
     db.select().from(debtsTable),
@@ -36,8 +36,6 @@ router.post("/ai/analyze", async (req, res) => {
   ]);
 
   const profile = profiles[0] ?? { currentSavings: 0, crisisMode: false };
-
-  // Pre-compute key metrics for context
   const weights: Record<string, number> = { HIGH: 1.0, MEDIUM: 0.65, LOW: 0.3 };
   const totalDebt = debts.reduce((s, d) => s + d.totalDebt, 0);
   const totalMonthlyDebt = debts.reduce((s, d) => s + d.monthlyPayment, 0);
@@ -47,90 +45,79 @@ router.post("/ai/analyze", async (req, res) => {
   const netCashFlow = weightedIncome - totalBurn;
   const runway = totalBurn > 0 ? profile.currentSavings / totalBurn : 999;
   const debtToIncome = weightedIncome > 0 ? (totalMonthlyDebt / weightedIncome) * 100 : 0;
-
   const focusArea = req.body?.focusArea ?? null;
 
   const prompt = `Ты — опытный персональный финансовый советник. Проанализируй финансовые данные пользователя и дай практические рекомендации.
-ВАЖНО: Весь ответ должен быть ТОЛЬКО на русском языке — заголовки, описания, резюме и все поля JSON.
+ВАЖНО: Весь ответ должен быть ТОЛЬКО на русском языке. Валюта — сом (KGS). Все суммы указывай в формате "X XXX сом".
 
+## Финансовый обзор
+- Накопления: ${fmtSom(profile.currentSavings)}
+- Финансовый запас: ${runway.toFixed(1)} мес. при текущих тратах
+- Чистый денежный поток: ${fmtSom(netCashFlow)} (${netCashFlow >= 0 ? "профицит" : "ДЕФИЦИТ"})
+- Всего трат в месяц: ${fmtSom(totalBurn)} (расходы: ${fmtSom(totalMonthlyExpenses)} + выплаты по долгам: ${fmtSom(totalMonthlyDebt)})
+- Реалистичный доход (с поправкой на вероятность): ${fmtSom(weightedIncome)}
+- Сумма всех долгов: ${fmtSom(totalDebt)}
+- Долговая нагрузка: ${debtToIncome.toFixed(1)}% от дохода
+${focusArea ? `- Приоритетная тема: ${focusArea}` : ""}
 
-
-## Financial Snapshot
-- Current Savings: $${profile.currentSavings.toFixed(2)}
-- Financial Runway: ${runway.toFixed(1)} months at current burn
-- Net Monthly Cash Flow: $${netCashFlow.toFixed(2)} (${netCashFlow >= 0 ? "surplus" : "DEFICIT"})
-- Monthly Burn Rate: $${totalBurn.toFixed(2)} (expenses: $${totalMonthlyExpenses.toFixed(2)} + debt payments: $${totalMonthlyDebt.toFixed(2)})
-- Confidence-Weighted Monthly Income: $${weightedIncome.toFixed(2)}
-- Total Debt: $${totalDebt.toFixed(2)}
-- Debt-to-Income Ratio: ${debtToIncome.toFixed(1)}%
-${focusArea ? `- Focus Area: ${focusArea}` : ""}
-
-## Debts (${debts.length} total)
-${debts.length === 0 ? "No debts recorded." : debts.map(d =>
-  `- ${d.creditorName}: $${d.totalDebt.toFixed(2)} remaining, $${d.monthlyPayment.toFixed(2)}/mo, ${d.interestRate}% APR, due ${d.dueDate}${d.notes ? ` (${d.notes})` : ""}`
+## Долги (${debts.length} шт.)
+${debts.length === 0 ? "Долгов не записано." : debts.map(d =>
+  `- ${d.creditorName}: остаток ${fmtSom(d.totalDebt)}, платёж ${fmtSom(d.monthlyPayment)}/мес, ставка ${d.interestRate}%${d.notes ? `, ${d.notes}` : ""}`
 ).join("\n")}
 
-## Monthly Expenses (${expenses.length} items)
-${expenses.length === 0 ? "No expenses recorded." : expenses.map(e =>
-  `- [${e.isEssential ? "ESSENTIAL" : "VARIABLE"}] ${e.name} (${e.category}): $${e.amount.toFixed(2)}/mo`
+## Ежемесячные расходы (${expenses.length} пунктов)
+${expenses.length === 0 ? "Расходов не записано." : expenses.map(e =>
+  `- [${e.isEssential ? "ОБЯЗАТЕЛЬНЫЙ" : "НЕОБЯЗАТЕЛЬНЫЙ"}] ${e.name} (${e.category}): ${fmtSom(e.amount)}/мес`
 ).join("\n")}
 
-## Income Sources (${incomes.length} entries)
-${incomes.length === 0 ? "No income recorded." : incomes.map(i =>
-  `- ${i.source} [${i.confidence} confidence]: projected $${i.projectedAmount.toFixed(2)}${i.actualAmount != null ? `, actual $${i.actualAmount.toFixed(2)}` : ", actual not yet recorded"} (${i.month})`
+## Источники дохода (${incomes.length} записей)
+${incomes.length === 0 ? "Доходов не записано." : incomes.map(i =>
+  `- ${i.source} [уверенность: ${i.confidence}]: ожидается ${fmtSom(i.projectedAmount)}${i.actualAmount != null ? `, получено ${fmtSom(i.actualAmount)}` : ", ещё не получено"} (${i.month})`
 ).join("\n")}
 
-## Your Task
-Respond ONLY with a valid JSON object (no markdown, no explanation outside the JSON) with this exact structure:
+## Задача
+Ответь ТОЛЬКО валидным JSON-объектом (без markdown, без текста вне JSON) строго такой структуры:
 {
   "optimizations": [
     {
-      "title": "Short action title (max 8 words)",
-      "description": "2-3 sentence specific, actionable advice referencing the user's actual numbers.",
+      "title": "Короткий заголовок — до 8 слов",
+      "description": "2-3 предложения с конкретными советами — упомяни реальные цифры пользователя.",
       "estimatedMonthlySaving": 0,
       "urgency": "critical|high|medium|low"
     }
   ],
   "riskAlerts": [
     {
-      "title": "Short risk title (max 8 words)",
-      "description": "1-2 sentence description of the risk and its impact.",
+      "title": "Короткий заголовок риска — до 8 слов",
+      "description": "1-2 предложения с описанием риска и его последствий.",
       "severity": "critical|warning|info"
     }
   ],
   "overallHealthScore": 0,
-  "summary": "2-3 sentence overall assessment."
+  "summary": "2-3 предложения — общая оценка финансового здоровья."
 }
 
-Rules:
-- Provide exactly 3 optimizations, ordered by urgency (most urgent first).
-- Provide 2-4 risk alerts based on actual data patterns.
-- overallHealthScore must be an integer from 0 to 100.
-- estimatedMonthlySaving must be a number (use 0 if not quantifiable).
-- Be specific — mention actual creditor names, amounts, and percentages from the data.
-- urgency values: "critical", "high", "medium", "low" only.
-- severity values: "critical", "warning", "info" only.`;
+Правила:
+- Ровно 3 оптимизации, отсортированные по срочности (сначала самые важные).
+- От 2 до 4 предупреждений о рисках, основанных на реальных данных.
+- overallHealthScore — целое число от 0 до 100.
+- estimatedMonthlySaving — число в сомах (0 если не поддаётся расчёту).
+- Упоминай конкретные названия кредиторов, суммы и ставки из данных пользователя.
+- urgency строго: "critical", "high", "medium", "low".
+- severity строго: "critical", "warning", "info".`;
 
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY not configured");
-    }
+    if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
     const response = await genai.models.generateContent({
       model: "gemini-2.0-flash",
       contents: prompt,
-      config: {
-        temperature: 0.4,
-        responseMimeType: "application/json",
-      },
+      config: { temperature: 0.4, responseMimeType: "application/json" },
     });
 
     const text = response.text ?? "";
-    // Strip any accidental markdown fences
     const clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
     const parsed: AnalysisResult = JSON.parse(clean);
-
-    // Clamp and validate the score
     const score = Math.max(0, Math.min(100, Math.round(parsed.overallHealthScore ?? 50)));
 
     return res.json({
@@ -141,8 +128,9 @@ Rules:
       analyzedAt: new Date().toISOString(),
     });
   } catch (err: any) {
-    req.log.warn({ err: err?.message ?? String(err) }, "Gemini API call failed — falling back to rule-based analysis");
-    // Graceful fallback to rule-based analysis
+    req.log.warn({ err: err?.message ?? String(err) }, "Gemini API вернул ошибку — используется встроенный анализ");
+
+    // Rule-based fallback (Russian)
     const highInterestDebts = debts.filter(d => d.interestRate > 20);
     const variableExpenses = expenses.filter(e => !e.isEssential);
     const totalVariable = variableExpenses.reduce((s, e) => s + e.amount, 0);
@@ -153,9 +141,9 @@ Rules:
     if (highInterestDebts.length > 0) {
       const avgRate = highInterestDebts.reduce((s, d) => s + d.interestRate, 0) / highInterestDebts.length;
       optimizations.push({
-        title: "Refinance High-Interest Debt",
-        description: `You have ${highInterestDebts.length} loan(s) above 20% APR (avg ${avgRate.toFixed(1)}%). Consolidating or refinancing could meaningfully reduce monthly interest.`,
-        estimatedMonthlySaving: Math.round(highInterestDebts.reduce((s, d) => s + d.monthlyPayment * 0.2, 0) * 100) / 100,
+        title: "Рефинансировать долги с высокими ставками",
+        description: `У вас ${highInterestDebts.length} кредит(ов) со ставкой выше 20% (в среднем ${avgRate.toFixed(1)}%). Рефинансирование или перевод в другой банк поможет снизить переплату каждый месяц.`,
+        estimatedMonthlySaving: Math.round(highInterestDebts.reduce((s, d) => s + d.monthlyPayment * 0.2, 0)),
         urgency: avgRate > 25 ? "critical" : "high",
       });
     }
@@ -163,9 +151,9 @@ Rules:
     if (totalVariable > 0) {
       const top3 = [...variableExpenses].sort((a, b) => b.amount - a.amount).slice(0, 3);
       optimizations.push({
-        title: "Cut Non-Essential Spending",
-        description: `Variable expenses total $${totalVariable.toFixed(2)}/mo. Trimming 30% — starting with ${top3.map(e => e.name).join(", ")} — improves cash flow immediately.`,
-        estimatedMonthlySaving: Math.round(totalVariable * 0.3 * 100) / 100,
+        title: "Сократить необязательные траты",
+        description: `Необязательные расходы: ${fmtSom(totalVariable)}/мес. Сокращение на 30% — особенно по статьям ${top3.map(e => `«${e.name}»`).join(", ")} — сразу улучшит ситуацию.`,
+        estimatedMonthlySaving: Math.round(totalVariable * 0.3),
         urgency: netCashFlow < 0 ? "critical" : "high",
       });
     }
@@ -173,25 +161,41 @@ Rules:
     if (debts.length > 1) {
       const highestRate = [...debts].sort((a, b) => b.interestRate - a.interestRate)[0];
       optimizations.push({
-        title: "Use Debt Avalanche Strategy",
-        description: `Pay minimums on all debts and direct extra cash to ${highestRate.creditorName} (${highestRate.interestRate}% APR) first. This minimises total interest paid.`,
+        title: "Применить метод лавины для погашения долгов",
+        description: `Платите минимумы по всем долгам, а весь свободный остаток направляйте на «${highestRate.creditorName}» (ставка ${highestRate.interestRate}%). Это минимизирует общую переплату.`,
         estimatedMonthlySaving: 0,
-        urgency: "high",
+        urgency: "medium",
       });
     }
 
     const riskAlerts: RiskAlert[] = [];
     if (netCashFlow < 0) {
-      riskAlerts.push({ title: "Negative Monthly Cash Flow", description: `Spending $${Math.abs(netCashFlow).toFixed(2)} more than income each month. Savings will last ${runway.toFixed(1)} months.`, severity: "critical" });
+      riskAlerts.push({
+        title: "Расходы превышают доходы",
+        description: `Каждый месяц уходит на ${fmtSom(Math.abs(netCashFlow))} больше, чем приходит. При этом темпе накоплений хватит на ${runway.toFixed(1)} мес.`,
+        severity: "critical",
+      });
     }
     if (debtToIncome > 43) {
-      riskAlerts.push({ title: "High Debt-to-Income Ratio", description: `Debt payments consume ${debtToIncome.toFixed(0)}% of income. Above 43% limits borrowing options and financial flexibility.`, severity: debtToIncome > 60 ? "critical" : "warning" });
+      riskAlerts.push({
+        title: "Высокая долговая нагрузка",
+        description: `Выплаты по долгам составляют ${debtToIncome.toFixed(0)}% дохода. Выше 43% — опасная зона, ограничивающая финансовую свободу.`,
+        severity: debtToIncome > 60 ? "critical" : "warning",
+      });
     }
     if (lowConfidenceIncome.length > 0) {
-      riskAlerts.push({ title: "Uncertain Income Sources", description: `${lowConfidenceIncome.length} income source(s) marked LOW confidence. Budget conservatively based on worst-case income.`, severity: "warning" });
+      riskAlerts.push({
+        title: "Нестабильные источники дохода",
+        description: `${lowConfidenceIncome.length} источник(ов) дохода с низкой уверенностью. Стройте бюджет на пессимистичном сценарии.`,
+        severity: "warning",
+      });
     }
     if (runway < 2) {
-      riskAlerts.push({ title: "Critical Savings Runway", description: `At current burn rate, savings last only ${runway.toFixed(1)} months. Activate Crisis Mode to extend runway.`, severity: "critical" });
+      riskAlerts.push({
+        title: "Критически малый запас накоплений",
+        description: `При текущих тратах накоплений хватит лишь на ${runway.toFixed(1)} мес. Включите режим выживания для оптимизации.`,
+        severity: "critical",
+      });
     }
 
     let score = 50;
@@ -202,15 +206,17 @@ Rules:
     if (highInterestDebts.length === 0) score += 5;
     score = Math.max(0, Math.min(100, Math.round(score)));
 
+    const summaryText = score >= 70
+      ? `Финансовое здоровье в порядке (оценка: ${score}/100). Сосредоточьтесь на погашении долгов и наращивании подушки безопасности.`
+      : score >= 40
+      ? `Финансовая ситуация требует внимания (оценка: ${score}/100). Займитесь оптимизациями выше — особенно денежным потоком.`
+      : `Финансовое положение критическое (оценка: ${score}/100). Немедленно включите режим выживания и уберите все необязательные траты.`;
+
     return res.json({
       optimizations: optimizations.slice(0, 3),
       riskAlerts: riskAlerts.slice(0, 4),
       overallHealthScore: score,
-      summary: score >= 70
-        ? `Finances are in reasonable shape (score: ${score}/100). Focus on debt elimination and growing your savings buffer.`
-        : score >= 40
-        ? `Financial position needs attention (score: ${score}/100). Address the top optimizations above — especially cash flow.`
-        : `Finances are under serious stress (score: ${score}/100). Activate Crisis Mode and cut non-essential spending immediately.`,
+      summary: summaryText,
       analyzedAt: new Date().toISOString(),
       _fallback: true,
     });

@@ -4,6 +4,9 @@ import { eq } from "drizzle-orm";
 
 const router = Router();
 
+const fmtSom = (val: number) =>
+  new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(val)) + " сом";
+
 async function ensureProfile() {
   const profiles = await db.select().from(profileTable).limit(1);
   if (profiles.length === 0) {
@@ -86,38 +89,39 @@ router.get("/crisis/simulation", async (req, res) => {
   const runwayMonthsCrisis = essentialBurnRate > 0 ? profile.currentSavings / essentialBurnRate : 999;
   const monthlyShortfall = Math.max(0, essentialBurnRate - monthlyIncome);
 
-  // Generate step-by-step action plan
+  // Step-by-step action plan in Russian
   const actionPlan: { priority: number; action: string; monthlySaving: number; description: string }[] = [];
   let priority = 1;
 
-  // Sort eliminable expenses by amount descending
+  // Top eliminable expenses by amount
   const sortedEliminable = [...eliminableExpenses].sort((a, b) => b.amount - a.amount);
   for (const exp of sortedEliminable.slice(0, 5)) {
     actionPlan.push({
       priority: priority++,
-      action: `Cut ${exp.name}`,
+      action: `Отказаться от «${exp.name}»`,
       monthlySaving: exp.amount,
-      description: `Eliminate the ${exp.category} expense "${exp.name}" ($${exp.amount.toFixed(2)}/mo) — marked as non-essential.`,
+      description: `Это необязательная трата (${CATEGORY_RU[exp.category] ?? exp.category}): ${fmtSom(exp.amount)} в месяц. Отказ сразу освободит деньги.`,
     });
   }
 
-  // Suggest debt refinancing if high interest
+  // High-interest debt refinancing
   const highInterestDebts = debts.filter(d => d.interestRate > 15).sort((a, b) => b.interestRate - a.interestRate);
   for (const debt of highInterestDebts.slice(0, 2)) {
+    const saving = Math.round(debt.monthlyPayment * 0.15 * 100) / 100;
     actionPlan.push({
       priority: priority++,
-      action: `Refinance ${debt.creditorName}`,
-      monthlySaving: Math.round(debt.monthlyPayment * 0.15 * 100) / 100,
-      description: `High interest rate (${debt.interestRate}%) on ${debt.creditorName}. Refinancing or balance transfer could save ~15% on monthly payments.`,
+      action: `Рефинансировать кредит в «${debt.creditorName}»`,
+      monthlySaving: saving,
+      description: `Высокая ставка ${debt.interestRate}% в «${debt.creditorName}». Перевод в другой банк или рефинансирование может сэкономить около 15% ежемесячного платежа — это ${fmtSom(saving)}.`,
     });
   }
 
   if (monthlyShortfall > 0) {
     actionPlan.push({
       priority: priority++,
-      action: "Seek additional income",
+      action: "Найти дополнительный доход",
       monthlySaving: monthlyShortfall,
-      description: `Monthly shortfall of $${monthlyShortfall.toFixed(2)}. Consider freelance work, part-time job, or selling unused assets to cover this gap.`,
+      description: `Даже после урезания трат не хватает ${fmtSom(monthlyShortfall)} в месяц. Рассмотри подработку, фриланс или продажу ненужных вещей чтобы закрыть этот дефицит.`,
     });
   }
 
@@ -132,5 +136,10 @@ router.get("/crisis/simulation", async (req, res) => {
     eliminableExpenses,
   });
 });
+
+const CATEGORY_RU: Record<string, string> = {
+  housing: "жильё", food: "питание", transport: "транспорт",
+  utilities: "коммунальные / связь", health: "здоровье", miscellaneous: "разное",
+};
 
 export default router;

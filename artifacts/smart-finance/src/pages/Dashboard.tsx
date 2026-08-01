@@ -31,6 +31,9 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
+const fmt = (val: number) =>
+  new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(val)) + "\u00a0сом";
+
 function MetricCard({ title, value, subtext, icon: Icon, trend, trendValue, colorClass }: any) {
   return (
     <Card className="hover-elevate">
@@ -41,7 +44,7 @@ function MetricCard({ title, value, subtext, icon: Icon, trend, trendValue, colo
         <Icon className={`h-4 w-4 ${colorClass}`} />
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold tracking-tight mb-1">{value}</div>
+        <div className="text-2xl font-bold tracking-tight mb-1">{value}</div>
         {(trend || subtext) && (
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             {trend === "up" && <TrendingUp className="h-3 w-3 text-emerald-500" />}
@@ -59,7 +62,6 @@ function RunwayBadge({ months }: { months: number }) {
   let color = "bg-destructive text-destructive-foreground";
   if (months > 6) color = "bg-emerald-500 text-white";
   else if (months >= 3) color = "bg-amber-500 text-white";
-
   return (
     <Badge className={`${color} px-2.5 py-1 text-sm font-bold border-none`}>
       {months.toFixed(1)} мес.
@@ -72,7 +74,6 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { data: summary, isLoading: isSummaryLoading } = useGetDashboardSummary({ query: { queryKey: ["/api/dashboard"] }});
   const { data: profile, isLoading: isProfileLoading } = useGetProfile({ query: { queryKey: ["/api/profile"] }});
-  
   const updateProfile = useUpdateProfile();
 
   const handleCrisisToggle = (checked: boolean) => {
@@ -81,8 +82,8 @@ export default function Dashboard() {
         queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
         queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
         toast({
-          title: checked ? "КРИЗИСНЫЙ РЕЖИМ АКТИВИРОВАН" : "Стандартный режим восстановлен",
-          description: checked ? "Только обязательные расходы. Запас пересчитан." : "Возврат к стандартному финансовому планированию.",
+          title: checked ? "КРИЗИСНЫЙ РЕЖИМ ВКЛЮЧЁН" : "Обычный режим восстановлен",
+          description: checked ? "Теперь считаются только обязательные траты." : "Возврат к обычному планированию.",
           variant: checked ? "destructive" : "default",
         });
       }
@@ -100,122 +101,100 @@ export default function Dashboard() {
     );
   }
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
-
   const chartData = [
-    {
-      name: "Доходы",
-      amount: summary.totalMonthlyIncome,
-      color: "hsl(var(--primary))"
-    },
-    {
-      name: "Расходы",
-      amount: summary.totalMonthlyExpenses,
-      color: "hsl(var(--destructive))"
-    },
-    {
-      name: "Выплаты по долгам",
-      amount: summary.totalMonthlyDebtPayment,
-      color: "hsl(var(--chart-3))"
-    }
+    { name: "Доходы",            amount: summary.totalMonthlyIncome,        color: "hsl(var(--primary))" },
+    { name: "Расходы",           amount: summary.totalMonthlyExpenses,       color: "hsl(var(--destructive))" },
+    { name: "Выплаты по долгам", amount: summary.totalMonthlyDebtPayment,    color: "hsl(var(--chart-3))" },
   ];
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* Header + mode toggle */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Системный статус</h1>
-          <p className="text-muted-foreground mt-1">Финансовый обзор и ключевые показатели.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Обзор финансов</h1>
+          <p className="text-muted-foreground mt-1">Вся картина ваших денег — одним взглядом.</p>
         </div>
-        
         <Card className={`border-2 ${profile.crisisMode ? 'border-destructive bg-destructive/5' : 'border-border'} transition-colors duration-500`}>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <ShieldAlert className={`h-8 w-8 ${profile.crisisMode ? 'text-destructive' : 'text-muted-foreground'}`} />
-              <div>
-                <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Режим работы</p>
-                <p className={`text-xl font-bold ${profile.crisisMode ? 'text-destructive' : ''}`}>
-                  {profile.crisisMode ? 'КРИЗИС' : 'СТАНДАРТ'}
-                </p>
-              </div>
+            <ShieldAlert className={`h-7 w-7 ${profile.crisisMode ? 'text-destructive' : 'text-muted-foreground'}`} />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Режим</p>
+              <p className={`text-lg font-bold ${profile.crisisMode ? 'text-destructive' : ''}`}>
+                {profile.crisisMode ? 'Кризисный' : 'Обычный'}
+              </p>
             </div>
-            <div className="w-px h-10 bg-border mx-2"></div>
-            <div className="flex items-center gap-3">
-              <Switch 
-                checked={profile.crisisMode} 
-                onCheckedChange={handleCrisisToggle} 
-                className={profile.crisisMode ? 'data-[state=checked]:bg-destructive' : ''}
-              />
-            </div>
+            <div className="w-px h-10 bg-border mx-1" />
+            <Switch 
+              checked={profile.crisisMode}
+              onCheckedChange={handleCrisisToggle}
+              className={profile.crisisMode ? 'data-[state=checked]:bg-destructive' : ''}
+            />
           </CardContent>
         </Card>
       </div>
 
+      {/* KPI cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard 
-          title="Чистый денежный поток" 
-          value={formatCurrency(summary.netMonthlyCashFlow)} 
-          subtext="Месячная операционная маржа"
+        <MetricCard
+          title="Свободный остаток"
+          value={fmt(summary.netMonthlyCashFlow)}
+          subtext="Сколько остаётся каждый месяц"
           icon={Activity}
           trend={summary.netMonthlyCashFlow > 0 ? "up" : "down"}
           colorClass={summary.netMonthlyCashFlow > 0 ? "text-emerald-500" : "text-destructive"}
         />
-        <MetricCard 
-          title="Финансовый запас" 
-          value={<RunwayBadge months={summary.financialRunwayMonths} />} 
-          subtext={`На основе ${formatCurrency(summary.currentSavings)} сбережений`}
+        <MetricCard
+          title="Подушка безопасности"
+          value={<RunwayBadge months={summary.financialRunwayMonths} />}
+          subtext={`На основе ${fmt(summary.currentSavings)} накоплений`}
           icon={AlertTriangle}
           colorClass="text-amber-500"
         />
-        <MetricCard 
-          title="Общий долг" 
-          value={formatCurrency(summary.totalDebt)} 
-          subtext={`По ${summary.debtCount} активным счетам`}
+        <MetricCard
+          title="Сумма всех долгов"
+          value={fmt(summary.totalDebt)}
+          subtext={`Активных кредитов: ${summary.debtCount}`}
           icon={Wallet}
           colorClass="text-destructive"
         />
-        <MetricCard 
-          title="Ежемесячный расход" 
-          value={formatCurrency(summary.totalMonthlyExpenses + summary.totalMonthlyDebtPayment)} 
-          subtext="Фиксированные + переменные обязательства"
+        <MetricCard
+          title="Всего трат в месяц"
+          value={fmt(summary.totalMonthlyExpenses + summary.totalMonthlyDebtPayment)}
+          subtext="Расходы + выплаты по кредитам"
           icon={Receipt}
           colorClass="text-primary"
         />
       </div>
 
+      {/* Chart + quick actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 flex flex-col">
           <CardHeader>
-            <CardTitle>Распределение денежных потоков</CardTitle>
-            <CardDescription>Доходы vs обязательства за месяц</CardDescription>
+            <CardTitle>Куда идут деньги</CardTitle>
+            <CardDescription>Доходы и траты за месяц</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 min-h-[300px]">
+          <CardContent className="flex-1 min-h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="hsl(var(--muted-foreground))" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${new Intl.NumberFormat("ru-RU", { notation: "compact" }).format(v)} сом`}
+                  width={80}
                 />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tickFormatter={(value) => `$${value}`}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                  formatter={(value: number) => [formatCurrency(value), "Сумма"]}
+                <Tooltip
+                  cursor={{ fill: "hsl(var(--muted)/0.5)" }}
+                  contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                  formatter={(value: number) => [fmt(value), "Сумма"]}
                 />
                 <Bar dataKey="amount" radius={[4, 4, 0, 0]} maxBarSize={60}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
+                  {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -225,41 +204,38 @@ export default function Dashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Быстрые действия</CardTitle>
-            <CardDescription>Быстрый переход</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             <Button variant="outline" className="w-full justify-start h-auto py-4 px-4 hover-elevate">
               <div className="flex items-center gap-4 text-left w-full">
-                <div className="bg-primary/10 p-2 rounded-md">
+                <div className="bg-primary/10 p-2 rounded-md shrink-0">
                   <TrendingUp className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <div className="font-bold">Добавить доход</div>
-                  <div className="text-xs text-muted-foreground">Прогнозный или фактический доход</div>
+                  <div className="font-semibold">Добавить доход</div>
+                  <div className="text-xs text-muted-foreground">Зарплата, фриланс и т.д.</div>
                 </div>
               </div>
             </Button>
-            
             <Button variant="outline" className="w-full justify-start h-auto py-4 px-4 hover-elevate">
               <div className="flex items-center gap-4 text-left w-full">
-                <div className="bg-destructive/10 p-2 rounded-md">
+                <div className="bg-destructive/10 p-2 rounded-md shrink-0">
                   <Receipt className="h-5 w-5 text-destructive" />
                 </div>
                 <div>
-                  <div className="font-bold">Записать расход</div>
-                  <div className="text-xs text-muted-foreground">Учёт нового переменного или фиксированного расхода</div>
+                  <div className="font-semibold">Записать расход</div>
+                  <div className="text-xs text-muted-foreground">Аренда, еда, транспорт…</div>
                 </div>
               </div>
             </Button>
-
             <Button variant="outline" className="w-full justify-start h-auto py-4 px-4 hover-elevate border-primary/20 bg-primary/5">
               <div className="flex items-center gap-4 text-left w-full">
-                <div className="bg-primary p-2 rounded-md text-primary-foreground">
+                <div className="bg-primary p-2 rounded-md text-primary-foreground shrink-0">
                   <BrainCircuit className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="font-bold">Запустить ИИ-анализ</div>
-                  <div className="text-xs text-muted-foreground">Сформировать антикризисную стратегию</div>
+                  <div className="font-semibold">Запустить ИИ-анализ</div>
+                  <div className="text-xs text-muted-foreground">Советы по улучшению бюджета</div>
                 </div>
               </div>
             </Button>
