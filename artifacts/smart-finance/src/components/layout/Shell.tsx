@@ -30,12 +30,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Debts", href: "/debts", icon: Wallet },
-  { name: "Expenses", href: "/expenses", icon: Receipt },
-  { name: "Income", href: "/income", icon: TrendingUp },
-  { name: "Crisis Simulator", href: "/crisis", icon: ShieldAlert },
-  { name: "AI Advisor", href: "/ai", icon: BrainCircuit },
+  { name: "Дашборд", href: "/", icon: LayoutDashboard },
+  { name: "Долги и Кредиты", href: "/debts", icon: Wallet },
+  { name: "Расходы", href: "/expenses", icon: Receipt },
+  { name: "Доходы", href: "/income", icon: TrendingUp },
+  { name: "Антикризисный режим", href: "/crisis", icon: ShieldAlert },
+  { name: "ИИ-Консультант", href: "/ai", icon: BrainCircuit },
 ];
 
 function AppSidebar() {
@@ -47,12 +47,12 @@ function AppSidebar() {
       <SidebarHeader className="h-16 flex items-center px-4 border-b border-sidebar-border bg-sidebar">
         <div className="flex items-center gap-2 font-bold text-lg text-sidebar-foreground w-full">
           <ShieldAlert className="h-6 w-6 text-primary" />
-          <span className="truncate">Survival Finance</span>
+          <span className="truncate">Финансовый контроль</span>
         </div>
       </SidebarHeader>
       <SidebarContent className="bg-sidebar">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Main Menu</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Главное меню</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navigation.map((item) => {
@@ -63,8 +63,8 @@ function AppSidebar() {
                       <Link href={item.href} className="flex items-center gap-3 w-full">
                         <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                         <span className="font-medium">{item.name}</span>
-                        {item.name === "Crisis Simulator" && summary?.crisisMode && (
-                          <Badge variant="destructive" className="ml-auto text-[10px] uppercase h-5 px-1.5 leading-none rounded-sm">ON</Badge>
+                        {item.name === "Антикризисный режим" && summary?.crisisMode && (
+                          <Badge variant="destructive" className="ml-auto text-[10px] uppercase h-5 px-1.5 leading-none rounded-sm">ВКЛ</Badge>
                         )}
                       </Link>
                     </SidebarMenuButton>
@@ -79,12 +79,12 @@ function AppSidebar() {
         {summary?.crisisMode ? (
            <div className="flex items-center gap-2 text-xs text-destructive font-bold p-2 bg-destructive/10 rounded-md">
              <ShieldAlert className="h-4 w-4" />
-             CRISIS MODE ACTIVE
+             КРИЗИСНЫЙ РЕЖИМ АКТИВЕН
            </div>
         ) : (
            <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium p-2">
              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-             Standard Mode
+             Стандартный режим
            </div>
         )}
       </SidebarFooter>

@@ -26,11 +26,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
 const incomeSchema = z.object({
-  source: z.string().min(1, "Required"),
-  projectedAmount: z.coerce.number().min(0, "Must be positive"),
+  source: z.string().min(1, "Обязательное поле"),
+  projectedAmount: z.coerce.number().min(0, "Должно быть положительным"),
   actualAmount: z.coerce.number().optional(),
   confidence: z.nativeEnum(IncomeInputConfidence),
-  month: z.string().min(1, "Required").regex(/^\d{4}-\d{2}$/, "Must be YYYY-MM"),
+  month: z.string().min(1, "Обязательное поле").regex(/^\d{4}-\d{2}$/, "Формат: ГГГГ-ММ"),
   notes: z.string().optional()
 });
 
@@ -93,7 +93,7 @@ export default function IncomePage() {
           queryClient.invalidateQueries({ queryKey: ["/api/incomes/summary"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
           setIsDialogOpen(false);
-          toast({ title: "Income source updated" });
+          toast({ title: "Источник дохода обновлён" });
         }
       });
     } else {
@@ -103,32 +103,32 @@ export default function IncomePage() {
           queryClient.invalidateQueries({ queryKey: ["/api/incomes/summary"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
           setIsDialogOpen(false);
-          toast({ title: "Income source added" });
+          toast({ title: "Источник дохода добавлен" });
         }
       });
     }
   };
 
   const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this income entry?")) {
+    if (confirm("Вы уверены, что хотите удалить эту запись?")) {
       deleteIncome.mutate({ id }, {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ["/api/incomes"] });
           queryClient.invalidateQueries({ queryKey: ["/api/incomes/summary"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
-          toast({ title: "Income removed" });
+          toast({ title: "Доход удалён" });
         }
       });
     }
   };
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'USD' }).format(val);
 
   const getConfidenceBadge = (confidence: string) => {
     switch (confidence) {
-      case "HIGH": return <Badge className="bg-emerald-500 text-white font-bold uppercase text-[10px] px-2 py-0.5 border-none">High</Badge>;
-      case "MEDIUM": return <Badge className="bg-amber-500 text-white font-bold uppercase text-[10px] px-2 py-0.5 border-none">Med</Badge>;
-      case "LOW": return <Badge className="bg-destructive text-white font-bold uppercase text-[10px] px-2 py-0.5 border-none">Low</Badge>;
+      case "HIGH": return <Badge className="bg-emerald-500 text-white font-bold uppercase text-[10px] px-2 py-0.5 border-none">Высокая</Badge>;
+      case "MEDIUM": return <Badge className="bg-amber-500 text-white font-bold uppercase text-[10px] px-2 py-0.5 border-none">Средняя</Badge>;
+      case "LOW": return <Badge className="bg-destructive text-white font-bold uppercase text-[10px] px-2 py-0.5 border-none">Низкая</Badge>;
       default: return null;
     }
   };
@@ -143,18 +143,18 @@ export default function IncomePage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Revenue Streams</h1>
-          <p className="text-muted-foreground mt-1">Projected and actual income tracking.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Источники доходов</h1>
+          <p className="text-muted-foreground mt-1">Отслеживание прогнозных и фактических доходов.</p>
         </div>
         <Button onClick={() => handleOpenDialog()} className="hover-elevate font-bold uppercase tracking-wider">
-          <Plus className="mr-2 h-4 w-4" /> Add Revenue
+          <Plus className="mr-2 h-4 w-4" /> Добавить доход
         </Button>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{editingIncome ? 'Update Revenue' : 'New Revenue Source'}</DialogTitle>
+            <DialogTitle>{editingIncome ? 'Обновить доход' : 'Новый источник дохода'}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
@@ -163,8 +163,8 @@ export default function IncomePage() {
                 name="source"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Source Name</FormLabel>
-                    <FormControl><Input {...field} placeholder="e.g. Acme Corp Salary" /></FormControl>
+                    <FormLabel>Название источника</FormLabel>
+                    <FormControl><Input {...field} placeholder="напр. Зарплата, Фриланс, Аренда" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -175,7 +175,7 @@ export default function IncomePage() {
                   name="month"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Target Month (YYYY-MM)</FormLabel>
+                      <FormLabel>Месяц (ГГГГ-ММ)</FormLabel>
                       <FormControl><Input type="month" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -186,17 +186,17 @@ export default function IncomePage() {
                   name="confidence"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confidence</FormLabel>
+                      <FormLabel>Уверенность</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select" />
+                            <SelectValue placeholder="Выбрать" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="HIGH">High (90%+)</SelectItem>
-                          <SelectItem value="MEDIUM">Medium (50-90%)</SelectItem>
-                          <SelectItem value="LOW">Low (&lt;50%)</SelectItem>
+                          <SelectItem value="HIGH">Высокая (90%+)</SelectItem>
+                          <SelectItem value="MEDIUM">Средняя (50–90%)</SelectItem>
+                          <SelectItem value="LOW">Низкая (&lt;50%)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -210,7 +210,7 @@ export default function IncomePage() {
                   name="projectedAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Projected</FormLabel>
+                      <FormLabel>Прогноз</FormLabel>
                       <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -221,7 +221,7 @@ export default function IncomePage() {
                   name="actualAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Actual (If realized)</FormLabel>
+                      <FormLabel>Факт (если получено)</FormLabel>
                       <FormControl><Input type="number" step="0.01" value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -230,7 +230,7 @@ export default function IncomePage() {
               </div>
               <div className="flex justify-end pt-4">
                 <Button type="submit" disabled={createIncome.isPending || updateIncome.isPending}>
-                  {editingIncome ? 'Update' : 'Save'} Revenue
+                  {editingIncome ? 'Обновить' : 'Сохранить'}
                 </Button>
               </div>
             </form>
@@ -242,32 +242,30 @@ export default function IncomePage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="border-2 border-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Total Projected</CardTitle>
+              <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Итого прогноз</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold mb-1">{formatCurrency(summary.totalProjected)}</div>
-              <div className="text-xs text-muted-foreground flex justify-between">
-                <span>Raw expectation</span>
-              </div>
+              <div className="text-xs text-muted-foreground">Базовый прогноз</div>
             </CardContent>
           </Card>
           
           <Card className="border-2 border-emerald-500/20">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium uppercase tracking-wider text-emerald-500 flex items-center gap-2">
-                Risk-Adjusted Total
+                С поправкой на риск
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold mb-1 text-emerald-500">{formatCurrency(summary.confidenceWeightedProjected)}</div>
-              <div className="text-xs text-muted-foreground">Weighted by confidence levels</div>
+              <div className="text-xs text-muted-foreground">Взвешено по уровню уверенности</div>
             </CardContent>
           </Card>
 
           <Card className={`border-2 ${gapIsPositive ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-destructive/20 bg-destructive/5'}`}>
             <CardHeader className="pb-2">
               <CardTitle className={`text-sm font-medium uppercase tracking-wider flex items-center gap-2 ${gapIsPositive ? 'text-emerald-500' : 'text-destructive'}`}>
-                Surplus / Deficit
+                Профицит / Дефицит
                 {gapIsPositive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
               </CardTitle>
             </CardHeader>
@@ -275,7 +273,7 @@ export default function IncomePage() {
               <div className={`text-3xl font-bold mb-1 ${gapIsPositive ? 'text-emerald-500' : 'text-destructive'}`}>
                 {gapIsPositive ? "+" : ""}{formatCurrency(summary.incomeVsExpenseGap)}
               </div>
-              <div className="text-xs text-muted-foreground">Risk-adjusted vs monthly expenses</div>
+              <div className="text-xs text-muted-foreground">С поправкой на риск vs ежемесячные расходы</div>
             </CardContent>
           </Card>
         </div>
@@ -283,26 +281,26 @@ export default function IncomePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Income Register</CardTitle>
-          <CardDescription>Track projected vs actual receipts</CardDescription>
+          <CardTitle>Реестр доходов</CardTitle>
+          <CardDescription>Прогноз против факта по каждому источнику</CardDescription>
         </CardHeader>
         <CardContent>
           {incomes?.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-20" />
-              <p>No revenue sources recorded.</p>
+              <p>Источники дохода не записаны.</p>
             </div>
           ) : (
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableHead>Target Month</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="text-center">Confidence</TableHead>
-                    <TableHead className="text-right">Projected</TableHead>
-                    <TableHead className="text-right">Actual</TableHead>
-                    <TableHead className="text-right">Variance</TableHead>
+                    <TableHead>Месяц</TableHead>
+                    <TableHead>Источник</TableHead>
+                    <TableHead className="text-center">Уверенность</TableHead>
+                    <TableHead className="text-right">Прогноз</TableHead>
+                    <TableHead className="text-right">Факт</TableHead>
+                    <TableHead className="text-right">Отклонение</TableHead>
                     <TableHead className="w-[100px]"></TableHead>
                   </TableRow>
                 </TableHeader>

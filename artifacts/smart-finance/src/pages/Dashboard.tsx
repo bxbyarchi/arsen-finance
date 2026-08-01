@@ -62,7 +62,7 @@ function RunwayBadge({ months }: { months: number }) {
 
   return (
     <Badge className={`${color} px-2.5 py-1 text-sm font-bold border-none`}>
-      {months.toFixed(1)} Months
+      {months.toFixed(1)} мес.
     </Badge>
   );
 }
@@ -81,8 +81,8 @@ export default function Dashboard() {
         queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
         queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
         toast({
-          title: checked ? "CRISIS MODE ENGAGED" : "Standard Mode Resumed",
-          description: checked ? "Essential operations only. Runways recalculated." : "Returning to standard financial planning.",
+          title: checked ? "КРИЗИСНЫЙ РЕЖИМ АКТИВИРОВАН" : "Стандартный режим восстановлен",
+          description: checked ? "Только обязательные расходы. Запас пересчитан." : "Возврат к стандартному финансовому планированию.",
           variant: checked ? "destructive" : "default",
         });
       }
@@ -100,21 +100,21 @@ export default function Dashboard() {
     );
   }
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
   const chartData = [
     {
-      name: "Income",
+      name: "Доходы",
       amount: summary.totalMonthlyIncome,
       color: "hsl(var(--primary))"
     },
     {
-      name: "Expenses",
+      name: "Расходы",
       amount: summary.totalMonthlyExpenses,
       color: "hsl(var(--destructive))"
     },
     {
-      name: "Debt Payments",
+      name: "Выплаты по долгам",
       amount: summary.totalMonthlyDebtPayment,
       color: "hsl(var(--chart-3))"
     }
@@ -124,8 +124,8 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">System Status</h1>
-          <p className="text-muted-foreground mt-1">Financial overview and critical metrics.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Системный статус</h1>
+          <p className="text-muted-foreground mt-1">Финансовый обзор и ключевые показатели.</p>
         </div>
         
         <Card className={`border-2 ${profile.crisisMode ? 'border-destructive bg-destructive/5' : 'border-border'} transition-colors duration-500`}>
@@ -133,9 +133,9 @@ export default function Dashboard() {
             <div className="flex items-center gap-3">
               <ShieldAlert className={`h-8 w-8 ${profile.crisisMode ? 'text-destructive' : 'text-muted-foreground'}`} />
               <div>
-                <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Operating Mode</p>
+                <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Режим работы</p>
                 <p className={`text-xl font-bold ${profile.crisisMode ? 'text-destructive' : ''}`}>
-                  {profile.crisisMode ? 'CRISIS' : 'STANDARD'}
+                  {profile.crisisMode ? 'КРИЗИС' : 'СТАНДАРТ'}
                 </p>
               </div>
             </div>
@@ -153,31 +153,31 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard 
-          title="Net Cash Flow" 
+          title="Чистый денежный поток" 
           value={formatCurrency(summary.netMonthlyCashFlow)} 
-          subtext="Monthly operating margin"
+          subtext="Месячная операционная маржа"
           icon={Activity}
           trend={summary.netMonthlyCashFlow > 0 ? "up" : "down"}
           colorClass={summary.netMonthlyCashFlow > 0 ? "text-emerald-500" : "text-destructive"}
         />
         <MetricCard 
-          title="Total Runway" 
+          title="Финансовый запас" 
           value={<RunwayBadge months={summary.financialRunwayMonths} />} 
-          subtext={`Based on ${formatCurrency(summary.currentSavings)} savings`}
+          subtext={`На основе ${formatCurrency(summary.currentSavings)} сбережений`}
           icon={AlertTriangle}
           colorClass="text-amber-500"
         />
         <MetricCard 
-          title="Total Debt" 
+          title="Общий долг" 
           value={formatCurrency(summary.totalDebt)} 
-          subtext={`Across ${summary.debtCount} active accounts`}
+          subtext={`По ${summary.debtCount} активным счетам`}
           icon={Wallet}
           colorClass="text-destructive"
         />
         <MetricCard 
-          title="Monthly Burn" 
+          title="Ежемесячный расход" 
           value={formatCurrency(summary.totalMonthlyExpenses + summary.totalMonthlyDebtPayment)} 
-          subtext="Total fixed + variable obligations"
+          subtext="Фиксированные + переменные обязательства"
           icon={Receipt}
           colorClass="text-primary"
         />
@@ -186,8 +186,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 flex flex-col">
           <CardHeader>
-            <CardTitle>Cash Flow Distribution</CardTitle>
-            <CardDescription>Monthly income versus obligations</CardDescription>
+            <CardTitle>Распределение денежных потоков</CardTitle>
+            <CardDescription>Доходы vs обязательства за месяц</CardDescription>
           </CardHeader>
           <CardContent className="flex-1 min-h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -210,7 +210,7 @@ export default function Dashboard() {
                 <Tooltip 
                   cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
                   contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                  formatter={(value: number) => [formatCurrency(value), "Amount"]}
+                  formatter={(value: number) => [formatCurrency(value), "Сумма"]}
                 />
                 <Bar dataKey="amount" radius={[4, 4, 0, 0]} maxBarSize={60}>
                   {chartData.map((entry, index) => (
@@ -224,8 +224,8 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Direct navigation</CardDescription>
+            <CardTitle>Быстрые действия</CardTitle>
+            <CardDescription>Быстрый переход</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button variant="outline" className="w-full justify-start h-auto py-4 px-4 hover-elevate">
@@ -234,8 +234,8 @@ export default function Dashboard() {
                   <TrendingUp className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <div className="font-bold">Log Income</div>
-                  <div className="text-xs text-muted-foreground">Add new projected or actual income</div>
+                  <div className="font-bold">Добавить доход</div>
+                  <div className="text-xs text-muted-foreground">Прогнозный или фактический доход</div>
                 </div>
               </div>
             </Button>
@@ -246,8 +246,8 @@ export default function Dashboard() {
                   <Receipt className="h-5 w-5 text-destructive" />
                 </div>
                 <div>
-                  <div className="font-bold">Record Expense</div>
-                  <div className="text-xs text-muted-foreground">Track new variable or fixed expense</div>
+                  <div className="font-bold">Записать расход</div>
+                  <div className="text-xs text-muted-foreground">Учёт нового переменного или фиксированного расхода</div>
                 </div>
               </div>
             </Button>
@@ -258,8 +258,8 @@ export default function Dashboard() {
                   <BrainCircuit className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="font-bold">Run AI Analysis</div>
-                  <div className="text-xs text-muted-foreground">Generate fresh survival strategy</div>
+                  <div className="font-bold">Запустить ИИ-анализ</div>
+                  <div className="text-xs text-muted-foreground">Сформировать антикризисную стратегию</div>
                 </div>
               </div>
             </Button>

@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { BrainCircuit, Loader2, Zap, AlertOctagon, TrendingUp, Activity, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+const URGENCY_LABELS: Record<string, string> = {
+  critical: "критично",
+  high: "высокий",
+  medium: "средний",
+  low: "низкий",
+};
+
 export default function AIAdvisor() {
   const [analysis, setAnalysis] = useState<AIAnalysisResult | null>(null);
   const analyze = useAnalyzeFinances();
@@ -22,7 +29,7 @@ export default function AIAdvisor() {
     });
   };
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
@@ -47,8 +54,8 @@ export default function AIAdvisor() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">AI Strategy Advisor</h1>
-          <p className="text-muted-foreground mt-1">Deep computational analysis of your financial health.</p>
+          <h1 className="text-3xl font-bold tracking-tight">ИИ-Стратег</h1>
+          <p className="text-muted-foreground mt-1">Глубокий компьютерный анализ вашего финансового здоровья.</p>
         </div>
         <Button 
           size="lg" 
@@ -58,9 +65,9 @@ export default function AIAdvisor() {
         >
           <div className="absolute inset-0 bg-primary/20 group-hover:bg-transparent transition-colors z-0"></div>
           {analyze.isPending ? (
-            <><Loader2 className="mr-2 h-4 w-4 animate-spin z-10 relative" /> Processing Data...</>
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin z-10 relative" /> Обработка данных...</>
           ) : (
-            <><BrainCircuit className="mr-2 h-5 w-5 z-10 relative" /> Run Full Analysis</>
+            <><BrainCircuit className="mr-2 h-5 w-5 z-10 relative" /> Полный анализ</>
           )}
         </Button>
       </div>
@@ -68,9 +75,9 @@ export default function AIAdvisor() {
       {!analysis && !analyze.isPending && (
         <Card className="border-dashed border-2 bg-transparent text-center p-12">
           <BrainCircuit className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-20" />
-          <h3 className="text-xl font-bold mb-2">Awaiting Computation</h3>
+          <h3 className="text-xl font-bold mb-2">Ожидание расчёта</h3>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Run a full analysis to generate custom optimization strategies, risk alerts, and a systemic health score based on your real-time data.
+            Запустите полный анализ для получения персональных стратегий оптимизации, предупреждений о рисках и системного показателя здоровья на основе ваших данных.
           </p>
         </Card>
       )}
@@ -90,7 +97,7 @@ export default function AIAdvisor() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BrainCircuit className="h-5 w-5 text-primary" />
-                  Executive Summary
+                  Сводный анализ
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -101,7 +108,7 @@ export default function AIAdvisor() {
             </Card>
 
             <Card className="flex flex-col items-center justify-center p-6 text-center border-border">
-              <div className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">System Health Score</div>
+              <div className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Индекс финансового здоровья</div>
               <div className="relative flex items-center justify-center w-40 h-40 rounded-full border-[12px] border-muted shadow-inner">
                 <div 
                   className={`absolute inset-0 rounded-full border-[12px] ${
@@ -125,7 +132,7 @@ export default function AIAdvisor() {
             <div className="space-y-4">
               <h3 className="text-xl font-bold flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-emerald-500" />
-                Strategic Optimizations
+                Стратегические оптимизации
               </h3>
               {analysis.optimizations.map((opt, i) => (
                 <Card key={i} className="hover-elevate border-border group transition-colors hover:border-emerald-500/30">
@@ -137,13 +144,13 @@ export default function AIAdvisor() {
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-bold text-foreground">{opt.title}</h4>
                         <Badge variant="outline" className={`uppercase text-[10px] font-bold ${getUrgencyColor(opt.urgency)}`}>
-                          {opt.urgency}
+                          {URGENCY_LABELS[opt.urgency] ?? opt.urgency}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mb-3">{opt.description}</p>
                       {opt.estimatedMonthlySaving > 0 && (
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 text-emerald-500 rounded text-xs font-bold uppercase">
-                          Projected Gain: +{formatCurrency(opt.estimatedMonthlySaving)}/mo
+                          Прогнозная экономия: +{formatCurrency(opt.estimatedMonthlySaving)}/мес
                         </div>
                       )}
                     </div>
@@ -155,7 +162,7 @@ export default function AIAdvisor() {
             <div className="space-y-4">
               <h3 className="text-xl font-bold flex items-center gap-2">
                 <AlertOctagon className="h-5 w-5 text-destructive" />
-                Risk Intelligence
+                Разведка рисков
               </h3>
               {analysis.riskAlerts.map((risk, i) => (
                 <Card key={i} className={`hover-elevate border-border group transition-colors ${risk.severity === 'critical' ? 'hover:border-destructive/50 border-destructive/20 bg-destructive/5' : ''}`}>
@@ -174,7 +181,7 @@ export default function AIAdvisor() {
               ))}
               {analysis.riskAlerts.length === 0 && (
                 <Card className="p-6 text-center border-dashed text-muted-foreground">
-                  No systemic risks detected. Current strategy is stable.
+                  Системных рисков не обнаружено. Текущая стратегия стабильна.
                 </Card>
               )}
             </div>

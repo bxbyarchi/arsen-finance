@@ -26,15 +26,15 @@ export default function CrisisSimulator() {
         queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
         queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
         toast({
-          title: checked ? "CRISIS MODE ENGAGED" : "Standard Mode Resumed",
-          description: checked ? "System locked to essential operations." : "Returning to standard tracking.",
+          title: checked ? "КРИЗИСНЫЙ РЕЖИМ АКТИВИРОВАН" : "Стандартный режим восстановлен",
+          description: checked ? "Только обязательные операции." : "Возврат к стандартному режиму.",
           variant: checked ? "destructive" : "default",
         });
       }
     });
   };
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'USD' }).format(val);
 
   if (isLoadingProfile || isLoadingSim || !profile || !simulation) {
     return <div className="space-y-6"><Skeleton className="h-12 w-64" /><Skeleton className="h-64 w-full" /></div>;
@@ -54,21 +54,21 @@ export default function CrisisSimulator() {
               <ShieldAlert className={`h-12 w-12 ${isCrisisActive ? 'text-destructive animate-pulse' : 'text-muted-foreground'}`} />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight mb-2">Crisis Protocol</h1>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">Антикризисный протокол</h1>
               <p className="text-muted-foreground max-w-lg">
-                Activate to calculate survival metrics based on absolute minimum capital outflow. This simulation strips all variable expenses and assumes baseline survival.
+                Активируйте для расчёта показателей выживания на основе минимального оттока капитала. Симулятор исключает все переменные расходы и рассчитывает базовое выживание.
               </p>
             </div>
           </div>
           <div className="flex flex-col items-center gap-3">
-            <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Master Toggle</span>
+            <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Главный переключатель</span>
             <Switch 
               checked={isCrisisActive} 
               onCheckedChange={handleCrisisToggle} 
               className={`scale-150 data-[state=checked]:bg-destructive shadow-[0_0_20px_rgba(239,68,68,0.3)]`} 
             />
             <span className={`text-xl font-black uppercase tracking-widest ${isCrisisActive ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {isCrisisActive ? 'Engaged' : 'Standby'}
+              {isCrisisActive ? 'Активен' : 'Ожидание'}
             </span>
           </div>
         </div>
@@ -77,11 +77,11 @@ export default function CrisisSimulator() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Current Burn Rate</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Текущий расход</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-mono font-bold mb-1">{formatCurrency(simulation.currentBurnRate)}</div>
-            <div className="text-xs text-muted-foreground">Total monthly outflow</div>
+            <div className="text-xs text-muted-foreground">Общий ежемесячный отток</div>
           </CardContent>
         </Card>
         
@@ -89,22 +89,22 @@ export default function CrisisSimulator() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs text-destructive font-bold uppercase tracking-wider flex items-center gap-2">
               <Zap className="h-3 w-3" />
-              Essential Burn
+              Обязательный расход
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-mono font-bold mb-1 text-destructive">{formatCurrency(simulation.essentialBurnRate)}</div>
-            <div className="text-xs text-emerald-500 font-medium">Saves {formatCurrency(savingsGained)} / mo</div>
+            <div className="text-xs text-emerald-500 font-medium">Экономия {formatCurrency(savingsGained)} / мес</div>
           </CardContent>
         </Card>
 
         <Card className="border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Standard Runway</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Стандартный запас</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold mb-1">{simulation.runwayMonthsFull.toFixed(1)} <span className="text-lg font-normal text-muted-foreground">mos</span></div>
-            <div className="text-xs text-muted-foreground">At full burn rate</div>
+            <div className="text-3xl font-bold mb-1">{simulation.runwayMonthsFull.toFixed(1)} <span className="text-lg font-normal text-muted-foreground">мес</span></div>
+            <div className="text-xs text-muted-foreground">При полном расходе</div>
           </CardContent>
         </Card>
         
@@ -112,12 +112,12 @@ export default function CrisisSimulator() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs text-amber-500 font-bold uppercase tracking-wider flex items-center gap-2">
               <Target className="h-3 w-3" />
-              Crisis Runway
+              Антикризисный запас
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold mb-1 text-amber-500">{simulation.runwayMonthsCrisis.toFixed(1)} <span className="text-lg font-normal opacity-70">mos</span></div>
-            <div className="text-xs text-emerald-500 font-medium">Extends survival by +{runwayGained.toFixed(1)} mos</div>
+            <div className="text-3xl font-bold mb-1 text-amber-500">{simulation.runwayMonthsCrisis.toFixed(1)} <span className="text-lg font-normal opacity-70">мес</span></div>
+            <div className="text-xs text-emerald-500 font-medium">Продлевает выживание на +{runwayGained.toFixed(1)} мес</div>
           </CardContent>
         </Card>
       </div>
@@ -127,7 +127,7 @@ export default function CrisisSimulator() {
           <div>
             <h2 className="text-xl font-bold tracking-tight mb-4 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Emergency Action Plan
+              Экстренный план действий
             </h2>
             <div className="space-y-4">
               {simulation.actionPlan.map((step, idx) => (
@@ -141,7 +141,7 @@ export default function CrisisSimulator() {
                     {step.monthlySaving > 0 && (
                       <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 text-emerald-500 rounded text-xs font-bold uppercase">
                         <ArrowRight className="h-3 w-3" />
-                        Reclaims {formatCurrency(step.monthlySaving)}/mo
+                        Возвращает {formatCurrency(step.monthlySaving)}/мес
                       </div>
                     )}
                   </div>
@@ -149,7 +149,7 @@ export default function CrisisSimulator() {
               ))}
               {simulation.actionPlan.length === 0 && (
                 <div className="p-8 text-center border border-dashed rounded-lg text-muted-foreground">
-                  No immediate actions required. System is stable.
+                  Немедленных действий не требуется. Система стабильна.
                 </div>
               )}
             </div>
@@ -161,21 +161,21 @@ export default function CrisisSimulator() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Receipt className="h-5 w-5" />
-                Eliminable Outflows
+                Исключаемые расходы
               </CardTitle>
-              <CardDescription>Variable expenses that will be cut under Crisis Mode.</CardDescription>
+              <CardDescription>Переменные расходы, которые будут исключены в кризисном режиме.</CardDescription>
             </CardHeader>
             <CardContent>
               {simulation.eliminableExpenses.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
-                  No variable expenses found to cut.
+                  Переменных расходов для исключения не найдено.
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Target</TableHead>
-                      <TableHead className="text-right">Capital Reclaimed</TableHead>
+                      <TableHead>Расход</TableHead>
+                      <TableHead className="text-right">Возвращено</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -190,7 +190,7 @@ export default function CrisisSimulator() {
                       </TableRow>
                     ))}
                     <TableRow className="bg-muted/30">
-                      <TableCell className="font-bold">Total Capital Reclaimed</TableCell>
+                      <TableCell className="font-bold">Итого возвращено</TableCell>
                       <TableCell className="text-right font-mono font-bold text-emerald-500">
                         +{formatCurrency(savingsGained)}
                       </TableCell>
@@ -203,12 +203,12 @@ export default function CrisisSimulator() {
 
           {simulation.monthlyShortfall > 0 && (
             <div className="p-6 border-l-4 border-destructive bg-destructive/5 rounded-r-lg">
-              <h3 className="text-destructive font-bold uppercase tracking-wider text-sm mb-2">Critical Shortfall Detected</h3>
+              <h3 className="text-destructive font-bold uppercase tracking-wider text-sm mb-2">Критический дефицит обнаружен</h3>
               <div className="text-4xl font-black text-destructive mb-2">
-                {formatCurrency(simulation.monthlyShortfall)} <span className="text-lg font-medium opacity-70">deficit/mo</span>
+                {formatCurrency(simulation.monthlyShortfall)} <span className="text-lg font-medium opacity-70">дефицит/мес</span>
               </div>
               <p className="text-sm text-foreground/80">
-                Even under crisis operations, current income does not cover essential expenses. Immediate injection of capital or radical lifestyle restructure required.
+                Даже в кризисном режиме текущие доходы не покрывают обязательные расходы. Необходимо срочное пополнение капитала или радикальное изменение образа жизни.
               </p>
             </div>
           )}

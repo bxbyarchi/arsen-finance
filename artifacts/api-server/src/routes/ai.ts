@@ -50,7 +50,10 @@ router.post("/ai/analyze", async (req, res) => {
 
   const focusArea = req.body?.focusArea ?? null;
 
-  const prompt = `You are an expert personal finance advisor. Analyze this user's financial data and provide actionable insights.
+  const prompt = `Ты — опытный персональный финансовый советник. Проанализируй финансовые данные пользователя и дай практические рекомендации.
+ВАЖНО: Весь ответ должен быть ТОЛЬКО на русском языке — заголовки, описания, резюме и все поля JSON.
+
+
 
 ## Financial Snapshot
 - Current Savings: $${profile.currentSavings.toFixed(2)}
