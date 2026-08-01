@@ -3,20 +3,34 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Smart Finance & Crisis Manager API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: debts
+    description: Debt and loan management
+  - name: expenses
+    description: Essential and variable expenses
+  - name: incomes
+    description: Income and revenue projections
+  - name: profile
+    description: Financial profile and settings
+  - name: dashboard
+    description: Dashboard summary and analytics
+  - name: crisis
+    description: Crisis simulation and runway analysis
+  - name: ai
+    description: AI financial advisor
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +38,357 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Debts ───────────────────────────────────────────────────
+  /debts:
+    get:
+      operationId: listDebts
+      tags: [debts]
+      summary: List all debts
+      responses:
+        "200":
+          description: List of debts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Debt"
+    post:
+      operationId: createDebt
+      tags: [debts]
+      summary: Create a new debt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DebtInput"
+      responses:
+        "201":
+          description: Created debt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Debt"
+
+  /debts/{id}:
+    get:
+      operationId: getDebt
+      tags: [debts]
+      summary: Get a debt by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Debt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Debt"
+        "404":
+          description: Not found
+    put:
+      operationId: updateDebt
+      tags: [debts]
+      summary: Update a debt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DebtInput"
+      responses:
+        "200":
+          description: Updated debt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Debt"
+    delete:
+      operationId: deleteDebt
+      tags: [debts]
+      summary: Delete a debt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /debts/payoff-schedules:
+    get:
+      operationId: getPayoffSchedules
+      tags: [debts]
+      summary: Get debt payoff schedules using Snowball and Avalanche strategies
+      responses:
+        "200":
+          description: Payoff schedule comparison
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoffSchedules"
+
+  # ─── Expenses ────────────────────────────────────────────────
+  /expenses:
+    get:
+      operationId: listExpenses
+      tags: [expenses]
+      summary: List all expenses
+      responses:
+        "200":
+          description: List of expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Expense"
+    post:
+      operationId: createExpense
+      tags: [expenses]
+      summary: Create a new expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "201":
+          description: Created expense
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+
+  /expenses/{id}:
+    put:
+      operationId: updateExpense
+      tags: [expenses]
+      summary: Update an expense
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "200":
+          description: Updated expense
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+    delete:
+      operationId: deleteExpense
+      tags: [expenses]
+      summary: Delete an expense
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /expenses/burn-rate:
+    get:
+      operationId: getBurnRate
+      tags: [expenses]
+      summary: Get total monthly burn rate breakdown (essential vs variable)
+      responses:
+        "200":
+          description: Burn rate summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BurnRate"
+
+  # ─── Incomes ─────────────────────────────────────────────────
+  /incomes:
+    get:
+      operationId: listIncomes
+      tags: [incomes]
+      summary: List all income entries
+      responses:
+        "200":
+          description: List of incomes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Income"
+    post:
+      operationId: createIncome
+      tags: [incomes]
+      summary: Create a new income entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncomeInput"
+      responses:
+        "201":
+          description: Created income
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Income"
+
+  /incomes/{id}:
+    put:
+      operationId: updateIncome
+      tags: [incomes]
+      summary: Update an income entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncomeInput"
+      responses:
+        "200":
+          description: Updated income
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Income"
+    delete:
+      operationId: deleteIncome
+      tags: [incomes]
+      summary: Delete an income entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /incomes/projection-summary:
+    get:
+      operationId: getProjectionSummary
+      tags: [incomes]
+      summary: Get actual vs projected income with confidence-weighted totals
+      responses:
+        "200":
+          description: Projection summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionSummary"
+
+  # ─── Profile ─────────────────────────────────────────────────
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: Get the financial profile
+      responses:
+        "200":
+          description: Financial profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialProfile"
+    patch:
+      operationId: updateProfile
+      tags: [profile]
+      summary: Update the financial profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialProfile"
+
+  # ─── Dashboard ───────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get high-level financial dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  # ─── Crisis ──────────────────────────────────────────────────
+  /crisis/simulation:
+    get:
+      operationId: getCrisisSimulation
+      tags: [crisis]
+      summary: Run crisis simulation - calculate financial runway and action plan
+      responses:
+        "200":
+          description: Crisis simulation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrisisSimulation"
+
+  # ─── AI ──────────────────────────────────────────────────────
+  /ai/analyze:
+    post:
+      operationId: analyzeFinances
+      tags: [ai]
+      summary: Get AI-powered financial analysis with optimizations and risk alerts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIAnalysisRequest"
+      responses:
+        "200":
+          description: AI financial analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIAnalysisResult"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +399,356 @@ components:
       required:
         - status
 
+    # ─── Debt ────────────────────────────────────────────────
+    Debt:
+      type: object
+      required: [id, creditorName, totalDebt, monthlyPayment, interestRate, dueDate, createdAt]
+      properties:
+        id:
+          type: integer
+        creditorName:
+          type: string
+        totalDebt:
+          type: number
+        monthlyPayment:
+          type: number
+        interestRate:
+          type: number
+          description: Annual interest rate as a percentage (e.g. 18.5 for 18.5%)
+        dueDate:
+          type: string
+          description: ISO date string (YYYY-MM-DD)
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    DebtInput:
+      type: object
+      required: [creditorName, totalDebt, monthlyPayment, interestRate, dueDate]
+      properties:
+        creditorName:
+          type: string
+        totalDebt:
+          type: number
+        monthlyPayment:
+          type: number
+        interestRate:
+          type: number
+        dueDate:
+          type: string
+        notes:
+          type: string
+
+    PayoffEntry:
+      type: object
+      required: [debtId, creditorName, order, monthsToPayoff, totalInterest, totalPaid]
+      properties:
+        debtId:
+          type: integer
+        creditorName:
+          type: string
+        order:
+          type: integer
+        monthsToPayoff:
+          type: integer
+        totalInterest:
+          type: number
+        totalPaid:
+          type: number
+
+    PayoffSchedules:
+      type: object
+      required: [snowball, avalanche, snowballTotalMonths, avalancheTotalMonths, snowballTotalInterest, avalancheTotalInterest]
+      properties:
+        snowball:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayoffEntry"
+        avalanche:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayoffEntry"
+        snowballTotalMonths:
+          type: integer
+        avalancheTotalMonths:
+          type: integer
+        snowballTotalInterest:
+          type: number
+        avalancheTotalInterest:
+          type: number
+
+    # ─── Expense ─────────────────────────────────────────────
+    Expense:
+      type: object
+      required: [id, category, name, amount, isEssential, createdAt]
+      properties:
+        id:
+          type: integer
+        category:
+          type: string
+          enum: [housing, food, transport, utilities, health, miscellaneous]
+        name:
+          type: string
+        amount:
+          type: number
+        isEssential:
+          type: boolean
+        createdAt:
+          type: string
+
+    ExpenseInput:
+      type: object
+      required: [category, name, amount, isEssential]
+      properties:
+        category:
+          type: string
+          enum: [housing, food, transport, utilities, health, miscellaneous]
+        name:
+          type: string
+        amount:
+          type: number
+        isEssential:
+          type: boolean
+
+    BurnRate:
+      type: object
+      required: [totalMonthly, essentialTotal, variableTotal, byCategory]
+      properties:
+        totalMonthly:
+          type: number
+        essentialTotal:
+          type: number
+        variableTotal:
+          type: number
+        byCategory:
+          type: array
+          items:
+            type: object
+            required: [category, total, essentialAmount, variableAmount]
+            properties:
+              category:
+                type: string
+              total:
+                type: number
+              essentialAmount:
+                type: number
+              variableAmount:
+                type: number
+
+    # ─── Income ──────────────────────────────────────────────
+    Income:
+      type: object
+      required: [id, source, projectedAmount, confidence, month, createdAt]
+      properties:
+        id:
+          type: integer
+        source:
+          type: string
+        projectedAmount:
+          type: number
+        actualAmount:
+          type: ["number", "null"]
+        confidence:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        month:
+          type: string
+          description: Month in YYYY-MM format
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    IncomeInput:
+      type: object
+      required: [source, projectedAmount, confidence, month]
+      properties:
+        source:
+          type: string
+        projectedAmount:
+          type: number
+        actualAmount:
+          type: number
+        confidence:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        month:
+          type: string
+        notes:
+          type: string
+
+    ProjectionSummary:
+      type: object
+      required: [totalProjected, totalActual, confidenceWeightedProjected, byConfidence, incomeVsExpenseGap]
+      properties:
+        totalProjected:
+          type: number
+        totalActual:
+          type: number
+        confidenceWeightedProjected:
+          type: number
+        byConfidence:
+          type: array
+          items:
+            type: object
+            required: [confidence, projected, actual, count]
+            properties:
+              confidence:
+                type: string
+              projected:
+                type: number
+              actual:
+                type: number
+              count:
+                type: integer
+        incomeVsExpenseGap:
+          type: number
+          description: Confidence-weighted income minus total monthly expenses
+
+    # ─── Profile ─────────────────────────────────────────────
+    FinancialProfile:
+      type: object
+      required: [id, currentSavings, crisisMode, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        currentSavings:
+          type: number
+        crisisMode:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    ProfileUpdate:
+      type: object
+      properties:
+        currentSavings:
+          type: number
+        crisisMode:
+          type: boolean
+
+    # ─── Dashboard ───────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required: [totalDebt, totalMonthlyDebtPayment, totalMonthlyExpenses, totalMonthlyIncome, currentSavings, netMonthlyCashFlow, financialRunwayMonths, debtCount, crisisMode]
+      properties:
+        totalDebt:
+          type: number
+        totalMonthlyDebtPayment:
+          type: number
+        totalMonthlyExpenses:
+          type: number
+        totalMonthlyIncome:
+          type: number
+        currentSavings:
+          type: number
+        netMonthlyCashFlow:
+          type: number
+        financialRunwayMonths:
+          type: number
+          description: Months of runway at current burn rate with current savings
+        debtCount:
+          type: integer
+        crisisMode:
+          type: boolean
+
+    # ─── Crisis ──────────────────────────────────────────────
+    CrisisActionStep:
+      type: object
+      required: [priority, action, monthlySaving, description]
+      properties:
+        priority:
+          type: integer
+        action:
+          type: string
+        monthlySaving:
+          type: number
+        description:
+          type: string
+
+    CrisisSimulation:
+      type: object
+      required: [essentialBurnRate, currentBurnRate, savingsAmount, runwayMonthsFull, runwayMonthsCrisis, monthlyShortfall, actionPlan, eliminableExpenses]
+      properties:
+        essentialBurnRate:
+          type: number
+          description: Minimum cost of living (essential expenses + minimum debt payments)
+        currentBurnRate:
+          type: number
+          description: Current total monthly spend
+        savingsAmount:
+          type: number
+        runwayMonthsFull:
+          type: number
+          description: Months at full current burn rate
+        runwayMonthsCrisis:
+          type: number
+          description: Months surviving at essential-only burn rate
+        monthlyShortfall:
+          type: number
+          description: Monthly income gap that needs to be covered
+        actionPlan:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrisisActionStep"
+        eliminableExpenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Expense"
+
+    # ─── AI ──────────────────────────────────────────────────
+    AIAnalysisRequest:
+      type: object
+      properties:
+        focusArea:
+          type: string
+          description: Optional focus area for the analysis
+
+    AIOptimization:
+      type: object
+      required: [title, description, estimatedMonthlySaving, urgency]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        estimatedMonthlySaving:
+          type: number
+        urgency:
+          type: string
+          enum: [critical, high, medium, low]
+
+    AIRiskAlert:
+      type: object
+      required: [title, description, severity]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [critical, warning, info]
+
+    AIAnalysisResult:
+      type: object
+      required: [optimizations, riskAlerts, overallHealthScore, summary, analyzedAt]
+      properties:
+        optimizations:
+          type: array
+          items:
+            $ref: "#/components/schemas/AIOptimization"
+        riskAlerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AIRiskAlert"
+        overallHealthScore:
+          type: integer
+          description: Financial health score from 0-100
+        summary:
+          type: string
+        analyzedAt:
+          type: string

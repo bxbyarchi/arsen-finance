@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Smart Finance & Crisis Manager"
+description = "A comprehensive personal and crisis financial planning dashboard. Tracks debts with Snowball/Avalanche payoff strategies, monitors essential expenses, projects income vs actuals, simulates financial runway in crisis mode, and provides AI-powered financial advice. Designed for individuals managing complex financial situations who need clarity and an action plan."
+version = "1.0.0"
+id = "artifacts/smart-finance"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20281
+
+[services.development]
+run = "pnpm --filter @workspace/smart-finance run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/smart-finance", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/smart-finance/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20281"
+BASE_PATH = "/"
