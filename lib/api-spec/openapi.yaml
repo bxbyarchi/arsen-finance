@@ -82,7 +82,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: number
       responses:
         "200":
           description: Debt
@@ -101,7 +101,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: number
       requestBody:
         required: true
         content:
@@ -124,7 +124,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: number
       responses:
         "204":
           description: Deleted
@@ -185,7 +185,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: number
       requestBody:
         required: true
         content:
@@ -208,7 +208,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: number
       responses:
         "204":
           description: Deleted
@@ -269,7 +269,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: number
       requestBody:
         required: true
         content:
@@ -292,7 +292,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: number
       responses:
         "204":
           description: Deleted
@@ -405,7 +405,7 @@ components:
       required: [id, creditorName, totalDebt, monthlyPayment, interestRate, dueDate, createdAt]
       properties:
         id:
-          type: integer
+          type: number
         creditorName:
           type: string
         totalDebt:
@@ -445,13 +445,13 @@ components:
       required: [debtId, creditorName, order, monthsToPayoff, totalInterest, totalPaid]
       properties:
         debtId:
-          type: integer
+          type: number
         creditorName:
           type: string
         order:
-          type: integer
+          type: number
         monthsToPayoff:
-          type: integer
+          type: number
         totalInterest:
           type: number
         totalPaid:
@@ -470,9 +470,9 @@ components:
           items:
             $ref: "#/components/schemas/PayoffEntry"
         snowballTotalMonths:
-          type: integer
+          type: number
         avalancheTotalMonths:
-          type: integer
+          type: number
         snowballTotalInterest:
           type: number
         avalancheTotalInterest:
@@ -484,7 +484,7 @@ components:
       required: [id, category, name, amount, isEssential, createdAt]
       properties:
         id:
-          type: integer
+          type: number
         category:
           type: string
           enum: [housing, food, transport, utilities, health, miscellaneous]
@@ -542,7 +542,7 @@ components:
       required: [id, source, projectedAmount, confidence, month, createdAt]
       properties:
         id:
-          type: integer
+          type: number
         source:
           type: string
         projectedAmount:
@@ -601,7 +601,7 @@ components:
               actual:
                 type: number
               count:
-                type: integer
+                type: number
         incomeVsExpenseGap:
           type: number
           description: Confidence-weighted income minus total monthly expenses
@@ -612,7 +612,7 @@ components:
       required: [id, currentSavings, crisisMode, createdAt, updatedAt]
       properties:
         id:
-          type: integer
+          type: number
         currentSavings:
           type: number
         crisisMode:
@@ -651,7 +651,7 @@ components:
           type: number
           description: Months of runway at current burn rate with current savings
         debtCount:
-          type: integer
+          type: number
         crisisMode:
           type: boolean
 
@@ -661,7 +661,7 @@ components:
       required: [priority, action, monthlySaving, description]
       properties:
         priority:
-          type: integer
+          type: number
         action:
           type: string
         monthlySaving:
@@ -746,7 +746,7 @@ components:
           items:
             $ref: "#/components/schemas/AIRiskAlert"
         overallHealthScore:
-          type: integer
+          type: number
           description: Financial health score from 0-100
         summary:
           type: string

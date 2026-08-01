@@ -1,44 +1,59 @@
-# [Project name]
+# Smart Finance & Crisis Manager
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A comprehensive personal and crisis financial planning web app for tracking debts, expenses, income projections, and running financial survival simulations.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/smart-finance run dev` — frontend (port auto-assigned)
+- `pnpm --filter @workspace/api-server run dev` — API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL` — Postgres connection string (auto-provisioned)
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React + Vite, Tailwind CSS, Recharts, shadcn/ui, wouter, TanStack Query
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
+- Validation: Zod (v4), drizzle-zod
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — single source of truth for all API contracts
+- `lib/db/src/schema/` — Drizzle schemas: debts.ts, expenses.ts, incomes.ts, profile.ts
+- `artifacts/api-server/src/routes/` — Express route handlers per domain
+- `artifacts/smart-finance/src/pages/` — React pages: Dashboard, Debts, Expenses, Income, Crisis, AIAdvisor
+
+## Features
+
+1. **Debt Tracker** — CRUD debts; Snowball vs Avalanche payoff schedule comparison
+2. **Expenses** — Essential vs variable categorized expenses; burn rate breakdown
+3. **Income Projections** — Actual vs projected with HIGH/MEDIUM/LOW confidence weighting
+4. **Crisis Simulator** — Toggle crisis mode; shows essential-only runway, eliminable expenses, step-by-step action plan
+5. **AI Advisor** — Rule-based analysis delivering 3 optimizations + risk alerts + health score (0–100)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+- All integer fields in OpenAPI spec use `type: number` (not `type: integer`) — Orval targets Zod v3 which has no `.int()` method; `integer` generates invalid Zod code
+- Financial profile is a singleton row (ensureProfile() auto-creates on first request)
+- AI analysis is fully rule-based (no external LLM) — runs on debts + expenses + incomes in real-time
+- Confidence-weighted income: HIGH=100%, MEDIUM=65%, LOW=30% of projected amount
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+_None set yet._
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- After any OpenAPI spec change, run codegen: `pnpm --filter @workspace/api-spec run codegen`
+- Do not use `type: integer` in openapi.yaml — use `type: number` instead (Orval/Zod v3 compatibility)
+- Payoff schedule route `/debts/payoff-schedules` must be registered BEFORE `/debts/:id` in the Express router
+- `pnpm --filter @workspace/db run push` after schema changes
 
 ## Pointers
 

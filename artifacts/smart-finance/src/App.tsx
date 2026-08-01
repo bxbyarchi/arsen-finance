@@ -4,29 +4,29 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 
-const queryClient = new QueryClient();
+import { AppLayout } from '@/components/layout/Shell';
+import Dashboard from '@/pages/Dashboard';
+import Debts from '@/pages/Debts';
+import Expenses from '@/pages/Expenses';
+import Income from '@/pages/Income';
+import Crisis from '@/pages/Crisis';
+import AIAdvisor from '@/pages/AIAdvisor';
 
-function Home() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Replit Agent is building...
-        </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Your app will appear here once it's ready.
-        </p>
-      </div>
-    </div>
-  );
-}
+const queryClient = new QueryClient();
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route component={NotFound} />
-    </Switch>
+    <AppLayout>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/debts" component={Debts} />
+        <Route path="/expenses" component={Expenses} />
+        <Route path="/income" component={Income} />
+        <Route path="/crisis" component={Crisis} />
+        <Route path="/ai" component={AIAdvisor} />
+        <Route component={NotFound} />
+      </Switch>
+    </AppLayout>
   );
 }
 

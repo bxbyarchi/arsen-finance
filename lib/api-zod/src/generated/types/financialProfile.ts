@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface FinancialProfile {
+  id: number;
+  currentSavings: number;
+  crisisMode: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
