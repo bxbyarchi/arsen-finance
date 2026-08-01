@@ -1,9 +1,32 @@
 import { Router } from "express";
+import { GoogleGenAI } from "@google/genai";
 import { db, debtsTable, expensesTable, incomesTable, profileTable } from "@workspace/db";
 
 const router = Router();
 
-// POST /ai/analyze - Rule-based financial analysis
+const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
+
+interface Optimization {
+  title: string;
+  description: string;
+  estimatedMonthlySaving: number;
+  urgency: "critical" | "high" | "medium" | "low";
+}
+
+interface RiskAlert {
+  title: string;
+  description: string;
+  severity: "critical" | "warning" | "info";
+}
+
+interface AnalysisResult {
+  optimizations: Optimization[];
+  riskAlerts: RiskAlert[];
+  overallHealthScore: number;
+  summary: string;
+}
+
+// POST /ai/analyze - Gemini-powered financial analysis
 router.post("/ai/analyze", async (req, res) => {
   const [debts, expenses, incomes, profiles] = await Promise.all([
     db.select().from(debtsTable),
@@ -14,143 +37,181 @@ router.post("/ai/analyze", async (req, res) => {
 
   const profile = profiles[0] ?? { currentSavings: 0, crisisMode: false };
 
-  // Compute key metrics
+  // Pre-compute key metrics for context
+  const weights: Record<string, number> = { HIGH: 1.0, MEDIUM: 0.65, LOW: 0.3 };
   const totalDebt = debts.reduce((s, d) => s + d.totalDebt, 0);
   const totalMonthlyDebt = debts.reduce((s, d) => s + d.monthlyPayment, 0);
   const totalMonthlyExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-  const variableExpenses = expenses.filter(e => !e.isEssential);
-  const totalVariable = variableExpenses.reduce((s, e) => s + e.amount, 0);
-  const weights: Record<string, number> = { HIGH: 1.0, MEDIUM: 0.65, LOW: 0.3 };
   const weightedIncome = incomes.reduce((s, i) => s + i.projectedAmount * (weights[i.confidence] ?? 0.5), 0);
   const totalBurn = totalMonthlyExpenses + totalMonthlyDebt;
   const netCashFlow = weightedIncome - totalBurn;
   const runway = totalBurn > 0 ? profile.currentSavings / totalBurn : 999;
-  const highInterestDebts = debts.filter(d => d.interestRate > 20);
-  const lowConfidenceIncome = incomes.filter(i => i.confidence === "LOW");
-  const savingsRatio = weightedIncome > 0 ? profile.currentSavings / weightedIncome : 0;
-  const debtToIncome = weightedIncome > 0 ? totalMonthlyDebt / weightedIncome : 0;
+  const debtToIncome = weightedIncome > 0 ? (totalMonthlyDebt / weightedIncome) * 100 : 0;
 
-  // Build optimizations
-  const optimizations: { title: string; description: string; estimatedMonthlySaving: number; urgency: string }[] = [];
+  const focusArea = req.body?.focusArea ?? null;
 
-  // 1. High interest debt
-  if (highInterestDebts.length > 0) {
-    const avgRate = highInterestDebts.reduce((s, d) => s + d.interestRate, 0) / highInterestDebts.length;
-    const potentialSaving = highInterestDebts.reduce((s, d) => s + d.monthlyPayment * 0.2, 0);
-    optimizations.push({
-      title: "Refinance High-Interest Debt",
-      description: `You have ${highInterestDebts.length} loan(s) with rates above 20% (avg ${avgRate.toFixed(1)}%). Refinancing or consolidating to a lower rate could save significantly on interest payments each month.`,
-      estimatedMonthlySaving: Math.round(potentialSaving * 100) / 100,
-      urgency: avgRate > 25 ? "critical" : "high",
+  const prompt = `You are an expert personal finance advisor. Analyze this user's financial data and provide actionable insights.
+
+## Financial Snapshot
+- Current Savings: $${profile.currentSavings.toFixed(2)}
+- Financial Runway: ${runway.toFixed(1)} months at current burn
+- Net Monthly Cash Flow: $${netCashFlow.toFixed(2)} (${netCashFlow >= 0 ? "surplus" : "DEFICIT"})
+- Monthly Burn Rate: $${totalBurn.toFixed(2)} (expenses: $${totalMonthlyExpenses.toFixed(2)} + debt payments: $${totalMonthlyDebt.toFixed(2)})
+- Confidence-Weighted Monthly Income: $${weightedIncome.toFixed(2)}
+- Total Debt: $${totalDebt.toFixed(2)}
+- Debt-to-Income Ratio: ${debtToIncome.toFixed(1)}%
+${focusArea ? `- Focus Area: ${focusArea}` : ""}
+
+## Debts (${debts.length} total)
+${debts.length === 0 ? "No debts recorded." : debts.map(d =>
+  `- ${d.creditorName}: $${d.totalDebt.toFixed(2)} remaining, $${d.monthlyPayment.toFixed(2)}/mo, ${d.interestRate}% APR, due ${d.dueDate}${d.notes ? ` (${d.notes})` : ""}`
+).join("\n")}
+
+## Monthly Expenses (${expenses.length} items)
+${expenses.length === 0 ? "No expenses recorded." : expenses.map(e =>
+  `- [${e.isEssential ? "ESSENTIAL" : "VARIABLE"}] ${e.name} (${e.category}): $${e.amount.toFixed(2)}/mo`
+).join("\n")}
+
+## Income Sources (${incomes.length} entries)
+${incomes.length === 0 ? "No income recorded." : incomes.map(i =>
+  `- ${i.source} [${i.confidence} confidence]: projected $${i.projectedAmount.toFixed(2)}${i.actualAmount != null ? `, actual $${i.actualAmount.toFixed(2)}` : ", actual not yet recorded"} (${i.month})`
+).join("\n")}
+
+## Your Task
+Respond ONLY with a valid JSON object (no markdown, no explanation outside the JSON) with this exact structure:
+{
+  "optimizations": [
+    {
+      "title": "Short action title (max 8 words)",
+      "description": "2-3 sentence specific, actionable advice referencing the user's actual numbers.",
+      "estimatedMonthlySaving": 0,
+      "urgency": "critical|high|medium|low"
+    }
+  ],
+  "riskAlerts": [
+    {
+      "title": "Short risk title (max 8 words)",
+      "description": "1-2 sentence description of the risk and its impact.",
+      "severity": "critical|warning|info"
+    }
+  ],
+  "overallHealthScore": 0,
+  "summary": "2-3 sentence overall assessment."
+}
+
+Rules:
+- Provide exactly 3 optimizations, ordered by urgency (most urgent first).
+- Provide 2-4 risk alerts based on actual data patterns.
+- overallHealthScore must be an integer from 0 to 100.
+- estimatedMonthlySaving must be a number (use 0 if not quantifiable).
+- Be specific — mention actual creditor names, amounts, and percentages from the data.
+- urgency values: "critical", "high", "medium", "low" only.
+- severity values: "critical", "warning", "info" only.`;
+
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY not configured");
+    }
+
+    const response = await genai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+      config: {
+        temperature: 0.4,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text ?? "";
+    // Strip any accidental markdown fences
+    const clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+    const parsed: AnalysisResult = JSON.parse(clean);
+
+    // Clamp and validate the score
+    const score = Math.max(0, Math.min(100, Math.round(parsed.overallHealthScore ?? 50)));
+
+    return res.json({
+      optimizations: (parsed.optimizations ?? []).slice(0, 3),
+      riskAlerts: (parsed.riskAlerts ?? []).slice(0, 4),
+      overallHealthScore: score,
+      summary: parsed.summary ?? "",
+      analyzedAt: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    req.log.warn({ err: err?.message ?? String(err) }, "Gemini API call failed — falling back to rule-based analysis");
+    // Graceful fallback to rule-based analysis
+    const highInterestDebts = debts.filter(d => d.interestRate > 20);
+    const variableExpenses = expenses.filter(e => !e.isEssential);
+    const totalVariable = variableExpenses.reduce((s, e) => s + e.amount, 0);
+    const lowConfidenceIncome = incomes.filter(i => i.confidence === "LOW");
+
+    const optimizations: Optimization[] = [];
+
+    if (highInterestDebts.length > 0) {
+      const avgRate = highInterestDebts.reduce((s, d) => s + d.interestRate, 0) / highInterestDebts.length;
+      optimizations.push({
+        title: "Refinance High-Interest Debt",
+        description: `You have ${highInterestDebts.length} loan(s) above 20% APR (avg ${avgRate.toFixed(1)}%). Consolidating or refinancing could meaningfully reduce monthly interest.`,
+        estimatedMonthlySaving: Math.round(highInterestDebts.reduce((s, d) => s + d.monthlyPayment * 0.2, 0) * 100) / 100,
+        urgency: avgRate > 25 ? "critical" : "high",
+      });
+    }
+
+    if (totalVariable > 0) {
+      const top3 = [...variableExpenses].sort((a, b) => b.amount - a.amount).slice(0, 3);
+      optimizations.push({
+        title: "Cut Non-Essential Spending",
+        description: `Variable expenses total $${totalVariable.toFixed(2)}/mo. Trimming 30% — starting with ${top3.map(e => e.name).join(", ")} — improves cash flow immediately.`,
+        estimatedMonthlySaving: Math.round(totalVariable * 0.3 * 100) / 100,
+        urgency: netCashFlow < 0 ? "critical" : "high",
+      });
+    }
+
+    if (debts.length > 1) {
+      const highestRate = [...debts].sort((a, b) => b.interestRate - a.interestRate)[0];
+      optimizations.push({
+        title: "Use Debt Avalanche Strategy",
+        description: `Pay minimums on all debts and direct extra cash to ${highestRate.creditorName} (${highestRate.interestRate}% APR) first. This minimises total interest paid.`,
+        estimatedMonthlySaving: 0,
+        urgency: "high",
+      });
+    }
+
+    const riskAlerts: RiskAlert[] = [];
+    if (netCashFlow < 0) {
+      riskAlerts.push({ title: "Negative Monthly Cash Flow", description: `Spending $${Math.abs(netCashFlow).toFixed(2)} more than income each month. Savings will last ${runway.toFixed(1)} months.`, severity: "critical" });
+    }
+    if (debtToIncome > 43) {
+      riskAlerts.push({ title: "High Debt-to-Income Ratio", description: `Debt payments consume ${debtToIncome.toFixed(0)}% of income. Above 43% limits borrowing options and financial flexibility.`, severity: debtToIncome > 60 ? "critical" : "warning" });
+    }
+    if (lowConfidenceIncome.length > 0) {
+      riskAlerts.push({ title: "Uncertain Income Sources", description: `${lowConfidenceIncome.length} income source(s) marked LOW confidence. Budget conservatively based on worst-case income.`, severity: "warning" });
+    }
+    if (runway < 2) {
+      riskAlerts.push({ title: "Critical Savings Runway", description: `At current burn rate, savings last only ${runway.toFixed(1)} months. Activate Crisis Mode to extend runway.`, severity: "critical" });
+    }
+
+    let score = 50;
+    if (netCashFlow > 0) score += Math.min(20, (netCashFlow / (totalBurn || 1)) * 20);
+    if (netCashFlow < 0) score -= Math.min(30, Math.abs(netCashFlow / (totalBurn || 1)) * 30);
+    if (runway >= 6) score += 15; else if (runway >= 3) score += 8; else if (runway < 1) score -= 20;
+    if (debtToIncome < 28) score += 10; else if (debtToIncome > 43) score -= 10;
+    if (highInterestDebts.length === 0) score += 5;
+    score = Math.max(0, Math.min(100, Math.round(score)));
+
+    return res.json({
+      optimizations: optimizations.slice(0, 3),
+      riskAlerts: riskAlerts.slice(0, 4),
+      overallHealthScore: score,
+      summary: score >= 70
+        ? `Finances are in reasonable shape (score: ${score}/100). Focus on debt elimination and growing your savings buffer.`
+        : score >= 40
+        ? `Financial position needs attention (score: ${score}/100). Address the top optimizations above — especially cash flow.`
+        : `Finances are under serious stress (score: ${score}/100). Activate Crisis Mode and cut non-essential spending immediately.`,
+      analyzedAt: new Date().toISOString(),
+      _fallback: true,
     });
   }
-
-  // 2. Variable expenses reduction
-  if (totalVariable > 0) {
-    const top3 = [...variableExpenses].sort((a, b) => b.amount - a.amount).slice(0, 3);
-    const saving = Math.round(totalVariable * 0.3 * 100) / 100;
-    optimizations.push({
-      title: "Reduce Non-Essential Spending",
-      description: `Your variable expenses total $${totalVariable.toFixed(2)}/mo. Cutting back 30% on non-essentials${top3.length ? ` (especially ${top3.map(e => e.name).join(", ")})` : ""} would improve your monthly cash flow immediately.`,
-      estimatedMonthlySaving: saving,
-      urgency: netCashFlow < 0 ? "critical" : totalVariable > weightedIncome * 0.2 ? "high" : "medium",
-    });
-  }
-
-  // 3. Debt snowball / avalanche
-  if (debts.length > 1) {
-    const smallestDebt = [...debts].sort((a, b) => a.totalDebt - b.totalDebt)[0];
-    const highestRate = [...debts].sort((a, b) => b.interestRate - a.interestRate)[0];
-    optimizations.push({
-      title: "Adopt Debt Avalanche Strategy",
-      description: `Pay minimums on all debts, then direct extra cash toward ${highestRate.creditorName} (${highestRate.interestRate}% APR). After that's cleared, cascade to ${smallestDebt.creditorName}. This minimizes total interest vs. the Snowball method.`,
-      estimatedMonthlySaving: Math.round(totalDebt * 0.005 * 100) / 100,
-      urgency: "high",
-    });
-  }
-
-  // 4. Emergency fund
-  if (savingsRatio < 3) {
-    optimizations.push({
-      title: `Build Emergency Fund to 3-Month Runway`,
-      description: `Your current savings cover ${runway.toFixed(1)} months at current spend. Financial best practice is 3–6 months. Work toward saving $${(totalBurn * 3 - profile.currentSavings).toFixed(0)} more.`,
-      estimatedMonthlySaving: 0,
-      urgency: runway < 1 ? "critical" : runway < 2 ? "high" : "medium",
-    });
-  }
-
-  // Keep top 3
-  const topOptimizations = optimizations.slice(0, 3);
-
-  // Build risk alerts
-  const riskAlerts: { title: string; description: string; severity: string }[] = [];
-
-  if (netCashFlow < 0) {
-    riskAlerts.push({
-      title: "Negative Monthly Cash Flow",
-      description: `You are spending $${Math.abs(netCashFlow).toFixed(2)} more than you earn each month. Without correction, you will exhaust savings in ${runway.toFixed(1)} months.`,
-      severity: "critical",
-    });
-  }
-
-  if (debtToIncome > 0.43) {
-    riskAlerts.push({
-      title: "High Debt-to-Income Ratio",
-      description: `Your debt payments consume ${(debtToIncome * 100).toFixed(0)}% of income. Lenders consider above 43% a risk threshold. This limits borrowing options and financial flexibility.`,
-      severity: debtToIncome > 0.6 ? "critical" : "warning",
-    });
-  }
-
-  if (lowConfidenceIncome.length > 0 && lowConfidenceIncome.reduce((s, i) => s + i.projectedAmount, 0) > weightedIncome * 0.3) {
-    riskAlerts.push({
-      title: "High Income Uncertainty",
-      description: `More than 30% of your projected income is marked LOW confidence. Budget based on your worst-case income scenario to avoid shortfalls.`,
-      severity: "warning",
-    });
-  }
-
-  if (runway < 2) {
-    riskAlerts.push({
-      title: "Critical Savings Runway",
-      description: `At current burn rate, savings will last only ${runway.toFixed(1)} months. Activate Crisis Mode to identify immediate cost cuts and extend runway.`,
-      severity: "critical",
-    });
-  }
-
-  if (highInterestDebts.length === 0 && netCashFlow >= 0 && runway >= 3) {
-    riskAlerts.push({
-      title: "Financial Position Stable",
-      description: "No critical risk factors detected. Focus on building savings and accelerating debt payoff to improve long-term resilience.",
-      severity: "info",
-    });
-  }
-
-  // Overall health score (0-100)
-  let score = 50;
-  if (netCashFlow > 0) score += Math.min(20, (netCashFlow / (totalBurn || 1)) * 20);
-  if (netCashFlow < 0) score -= Math.min(30, Math.abs(netCashFlow / (totalBurn || 1)) * 30);
-  if (runway >= 6) score += 15;
-  else if (runway >= 3) score += 8;
-  else if (runway < 1) score -= 20;
-  if (debtToIncome < 0.28) score += 10;
-  else if (debtToIncome > 0.43) score -= 10;
-  if (highInterestDebts.length === 0) score += 5;
-  score = Math.max(0, Math.min(100, Math.round(score)));
-
-  const summary =
-    score >= 70
-      ? `Your finances are in reasonably good shape (score: ${score}/100). Focus on debt elimination and building your savings buffer.`
-      : score >= 40
-      ? `Your financial position needs attention (score: ${score}/100). Address the optimizations above — especially cash flow — to avoid a crisis.`
-      : `Your finances are under serious stress (score: ${score}/100). Activate Crisis Mode now, cut non-essential spending immediately, and prioritize stabilizing monthly cash flow.`;
-
-  res.json({
-    optimizations: topOptimizations,
-    riskAlerts: riskAlerts.slice(0, 4),
-    overallHealthScore: score,
-    summary,
-    analyzedAt: new Date().toISOString(),
-  });
 });
 
 export default router;
