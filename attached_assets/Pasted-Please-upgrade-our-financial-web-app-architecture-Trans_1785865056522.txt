@@ -1,0 +1,34 @@
+Please upgrade our financial web app architecture. Transform it into a hybrid System (Personal Cash Flow + Davlatov's Financial Allocation Method + Multi-Project P&L Dashboard like Google Looker/Data Studio).
+
+### Key Features & Requirements:
+
+1. Project-Based P&L Module (Multi-Business Accounting):
+   - Ability to create dynamically separate Projects/Businesses (e.g. "TikTok Monetization", "YouTube Channel", "Cleaning Company", "Luna Garden", etc.).
+   - For each project, store and calculate:
+     - Gross Revenue (Оборот)
+     - Cost of Goods/Services Sold / Direct Expenses (Закуп / Прямые расходы)
+     - Gross Profit / Margin (Маржа / Валовая прибыль)
+     - Operating Expenses (Маркетинг, Зарплата, Аренда, Логистика, Коммуналка)
+     - Net Profit (Чистая прибыль)
+     - Reinvestment Amount (Реинвестиции)
+     - Dividends Paid out to Personal Account (Дивиденды)
+   - Summary view comparing performance across all projects (Bar charts for revenue/profit per project).
+
+2. Davlatov's Wealth Accumulation & Allocation System (Personal Funds Engine):
+   - When Dividends or Personal Income is recorded, apply the automatic distribution algorithm (based on Saidmurod Davlatov's methodology):
+     a) Charity (Благотворительность): 2.5% - 10%
+     b) Parents Fund (Родителям): 10%
+     c) Future / Savings Fund (На будущее / Накопления): 10%
+     d) Entertainment Fund (Развлечения): 10%
+     e) Living & Business Growth (Собственный счет & Капитал): Remaining budget divided into Growth vs Dream funds (50% Large Dreams, 50% Small Dreams).
+
+3. Savings & Financial Target Planner (Goals & Milestones):
+   - Interactive Target Setting:
+     - User inputs target savings goals: 1 Month, 6 Months, 1 Year, 3 Years.
+     - System calculates required monthly target net income to hit these goals.
+     - Progress bar tracking status towards each savings milestone.
+
+4. UI/UX Dashboard Enhancements (Inspired by Looker/Data Studio Dashboards):
+   - Top Metrics Bar: Total Gross Revenue, Total Net Profit, Total Dividends, Total Debt / Credit, Total Emergency Savings.
+   - Monthly Breakdown Visualizer: Clean stacked bar/line charts showing Revenue vs Expenses vs Reinvestments vs Dividends per month.
+   - All amounts rendered in local currency 'сом' (KGS).
