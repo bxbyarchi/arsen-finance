@@ -1,0 +1,40 @@
+Please populate the database with initial test financial data to verify all modules, including Personal Expenses, Crisis Mode logic, Project P&L, and Davlatov's Allocation Rules.
+
+### 1. Personal Monthly Expenses (Личные расходы)
+Create the following personal expense records (in KGS / сом):
+- Debt Service (Кредит банк): 9,775 KGS | Category: Debt | Is Mandatory: True
+- Secondary Debts (Прочие долги): 10,000 KGS | Category: Debt | Is Mandatory: True
+- Food & Groceries (Питание): 12,000 KGS | Category: Living | Is Mandatory: True
+- Connectivity & Mobile (Связь и интернет): 1,000 KGS | Category: Living | Is Mandatory: True
+- Pocket Expenses (Личные мелкие расходы): 5,000 KGS | Category: Personal | Is Mandatory: False
+- AI Tools & Niche Testing (ИИ подписки и тесты): 7,000 KGS | Category: Business/Testing | Is Mandatory: False
+- Housing/Rent (Проживание на базе): 0 KGS | Category: Living | Is Mandatory: True
+
+### 2. Business Projects Setup (Проекты и P&L)
+Initialize 3 active business projects with sample monthly revenue and expense logs:
+
+a) Project: "Cleaning Company" (Клининг)
+   - Monthly Revenue: 60,000 KGS
+   - Direct Costs (Химия и оборудование): 15,000 KGS
+   - Operating Expenses (Маркетинг - 8,000 KGS, Транспорт - 4,000 KGS)
+
+b) Project: "Content Creation (TikTok & YouTube)"
+   - Monthly Revenue: 25,000 KGS
+   - Operating Expenses (Монтаж/Софт - 3,000 KGS, Реклама - 5,000 KGS)
+
+c) Project: "Luna Garden Operations"
+   - Monthly Revenue: 180,000 KGS
+   - Direct Costs (Закуп расходников): 20,000 KGS
+   - Operating Expenses (ФОТ/Зарплаты - 45,000 KGS, Коммуналка - 12,000 KGS)
+
+### 3. Savings Goals Setup (Цели по накоплениям)
+Create initial savings milestones to test the strategy timeline:
+- 1 Month Target (Краткосрок - Подушка): 50,000 KGS
+- 6 Month Target (Среднесрок - Оборудование/Реинвест): 300,000 KGS
+- 12 Month Target (Долгосрок - Крупный актив): 1,200,000 KGS
+
+### 4. Davlatov Funds Initialization
+Ensure that any dividends distributed from project profits automatically apply the percentage split:
+- Charity (2.5%), Parents (10%), Future/Savings (10%), Entertainment (10%), Growth/Capital & Dreams (Remaining split).
+
+Please run a seed script or add these default records into the app so the Dashboard, Charts, and Crisis Simulator immediately render realistic data.
