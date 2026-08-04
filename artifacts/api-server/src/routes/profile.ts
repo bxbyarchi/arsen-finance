@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, profileTable, debtsTable, expensesTable, incomesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, profileTable, debtsTable, expensesTable, incomesTable, projectEntriesTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -37,11 +37,12 @@ router.patch("/profile", async (req, res) => {
 
 // GET /dashboard/summary
 router.get("/dashboard/summary", async (req, res) => {
-  const [profile, debts, expenses, incomes] = await Promise.all([
+  const [profile, debts, expenses, incomes, projectEntries] = await Promise.all([
     ensureProfile(),
     db.select().from(debtsTable),
     db.select().from(expensesTable),
     db.select().from(incomesTable),
+    db.select().from(projectEntriesTable).orderBy(projectEntriesTable.month),
   ]);
 
   const totalDebt = debts.reduce((s, d) => s + d.totalDebt, 0);
@@ -53,6 +54,47 @@ router.get("/dashboard/summary", async (req, res) => {
   const netMonthlyCashFlow = totalMonthlyIncome - totalBurn;
   const financialRunwayMonths = totalBurn > 0 ? profile.currentSavings / totalBurn : 999;
 
+  // Project aggregates
+  let totalProjectRevenue = 0;
+  let totalProjectNetProfit = 0;
+  let totalProjectDividends = 0;
+
+  // Monthly breakdown from project entries
+  const monthMap = new Map<string, { month: string; revenue: number; expenses: number; reinvestments: number; dividends: number; netProfit: number }>();
+
+  for (const e of projectEntries) {
+    const grossProfit = e.grossRevenue - e.directCosts;
+    const totalOpex = e.marketingExpense + e.salaryExpense + e.rentExpense + e.logisticsExpense + e.utilitiesExpense;
+    const netProfit = grossProfit - totalOpex;
+
+    totalProjectRevenue += e.grossRevenue;
+    totalProjectNetProfit += netProfit;
+    totalProjectDividends += e.dividends;
+
+    const mb = monthMap.get(e.month) ?? { month: e.month, revenue: 0, expenses: 0, reinvestments: 0, dividends: 0, netProfit: 0 };
+    mb.revenue += e.grossRevenue;
+    mb.expenses += totalOpex + e.directCosts;
+    mb.reinvestments += e.reinvestment;
+    mb.dividends += e.dividends;
+    mb.netProfit += netProfit;
+    monthMap.set(e.month, mb);
+  }
+
+  // If no project entries, add the current month for personal finances
+  if (monthMap.size === 0) {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    monthMap.set(currentMonth, {
+      month: currentMonth,
+      revenue: totalMonthlyIncome,
+      expenses: totalBurn,
+      reinvestments: 0,
+      dividends: 0,
+      netProfit: netMonthlyCashFlow,
+    });
+  }
+
+  const monthlyBreakdown = Array.from(monthMap.values()).sort((a, b) => a.month.localeCompare(b.month));
+
   res.json({
     totalDebt,
     totalMonthlyDebtPayment,
@@ -63,6 +105,10 @@ router.get("/dashboard/summary", async (req, res) => {
     financialRunwayMonths: Math.round(financialRunwayMonths * 10) / 10,
     debtCount: debts.length,
     crisisMode: profile.crisisMode,
+    totalProjectRevenue,
+    totalProjectNetProfit,
+    totalProjectDividends,
+    monthlyBreakdown,
   });
 });
 
@@ -89,11 +135,9 @@ router.get("/crisis/simulation", async (req, res) => {
   const runwayMonthsCrisis = essentialBurnRate > 0 ? profile.currentSavings / essentialBurnRate : 999;
   const monthlyShortfall = Math.max(0, essentialBurnRate - monthlyIncome);
 
-  // Step-by-step action plan in Russian
   const actionPlan: { priority: number; action: string; monthlySaving: number; description: string }[] = [];
   let priority = 1;
 
-  // Top eliminable expenses by amount
   const sortedEliminable = [...eliminableExpenses].sort((a, b) => b.amount - a.amount);
   for (const exp of sortedEliminable.slice(0, 5)) {
     actionPlan.push({
@@ -104,7 +148,6 @@ router.get("/crisis/simulation", async (req, res) => {
     });
   }
 
-  // High-interest debt refinancing
   const highInterestDebts = debts.filter(d => d.interestRate > 15).sort((a, b) => b.interestRate - a.interestRate);
   for (const debt of highInterestDebts.slice(0, 2)) {
     const saving = Math.round(debt.monthlyPayment * 0.15 * 100) / 100;
@@ -112,7 +155,7 @@ router.get("/crisis/simulation", async (req, res) => {
       priority: priority++,
       action: `Рефинансировать кредит в «${debt.creditorName}»`,
       monthlySaving: saving,
-      description: `Высокая ставка ${debt.interestRate}% в «${debt.creditorName}». Перевод в другой банк или рефинансирование может сэкономить около 15% ежемесячного платежа — это ${fmtSom(saving)}.`,
+      description: `Высокая ставка ${debt.interestRate}% в «${debt.creditorName}». Рефинансирование может сэкономить около 15% ежемесячного платежа — это ${fmtSom(saving)}.`,
     });
   }
 
@@ -121,7 +164,7 @@ router.get("/crisis/simulation", async (req, res) => {
       priority: priority++,
       action: "Найти дополнительный доход",
       monthlySaving: monthlyShortfall,
-      description: `Даже после урезания трат не хватает ${fmtSom(monthlyShortfall)} в месяц. Рассмотри подработку, фриланс или продажу ненужных вещей чтобы закрыть этот дефицит.`,
+      description: `Даже после урезания трат не хватает ${fmtSom(monthlyShortfall)} в месяц. Рассмотри подработку, фриланс или продажу ненужных вещей.`,
     });
   }
 

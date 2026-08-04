@@ -360,7 +360,18 @@ export const GetDashboardSummaryResponse = zod.object({
   "netMonthlyCashFlow": zod.number(),
   "financialRunwayMonths": zod.number().describe('Months of runway at current burn rate with current savings'),
   "debtCount": zod.number(),
-  "crisisMode": zod.boolean()
+  "crisisMode": zod.boolean(),
+  "totalProjectRevenue": zod.number().optional(),
+  "totalProjectNetProfit": zod.number().optional(),
+  "totalProjectDividends": zod.number().optional(),
+  "monthlyBreakdown": zod.array(zod.object({
+  "month": zod.string(),
+  "revenue": zod.number(),
+  "expenses": zod.number(),
+  "reinvestments": zod.number(),
+  "dividends": zod.number(),
+  "netProfit": zod.number()
+})).optional()
 })
 
 
@@ -414,5 +425,358 @@ export const AnalyzeFinancesResponse = zod.object({
   "summary": zod.string(),
   "analyzedAt": zod.string()
 })
+
+
+/**
+ * @summary Get aggregate P&L summary across all projects
+ */
+export const GetProjectsSummaryResponse = zod.object({
+  "projects": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "color": zod.string(),
+  "totalRevenue": zod.number(),
+  "totalDirectCosts": zod.number(),
+  "totalGrossProfit": zod.number(),
+  "totalOpex": zod.number(),
+  "totalNetProfit": zod.number(),
+  "totalReinvestment": zod.number(),
+  "totalDividends": zod.number(),
+  "entryCount": zod.number()
+})),
+  "totals": zod.object({
+  "grossRevenue": zod.number(),
+  "netProfit": zod.number(),
+  "dividends": zod.number(),
+  "reinvestment": zod.number()
+}),
+  "monthlyBreakdown": zod.array(zod.object({
+  "month": zod.string(),
+  "revenue": zod.number(),
+  "expenses": zod.number(),
+  "reinvestments": zod.number(),
+  "dividends": zod.number(),
+  "netProfit": zod.number()
+}))
+})
+
+
+/**
+ * @summary List all projects
+ */
+export const ListProjectsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "color": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
+
+
+/**
+ * @summary Create a new project
+ */
+export const CreateProjectBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "color": zod.string().optional()
+})
+
+export const CreateProjectResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "color": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Get a project by ID
+ */
+export const GetProjectParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetProjectResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "color": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a project
+ */
+export const UpdateProjectParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateProjectBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "color": zod.string().optional()
+})
+
+export const UpdateProjectResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "color": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a project
+ */
+export const DeleteProjectParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteProjectResponse = zod.void()
+
+
+/**
+ * @summary List all monthly entries for a project
+ */
+export const ListProjectEntriesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListProjectEntriesResponseItem = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "month": zod.string(),
+  "grossRevenue": zod.number(),
+  "directCosts": zod.number(),
+  "marketingExpense": zod.number(),
+  "salaryExpense": zod.number(),
+  "rentExpense": zod.number(),
+  "logisticsExpense": zod.number(),
+  "utilitiesExpense": zod.number(),
+  "reinvestment": zod.number(),
+  "dividends": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListProjectEntriesResponse = zod.array(ListProjectEntriesResponseItem)
+
+
+/**
+ * @summary Create a monthly P&L entry for a project
+ */
+export const CreateProjectEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CreateProjectEntryBody = zod.object({
+  "month": zod.string(),
+  "grossRevenue": zod.number().optional(),
+  "directCosts": zod.number().optional(),
+  "marketingExpense": zod.number().optional(),
+  "salaryExpense": zod.number().optional(),
+  "rentExpense": zod.number().optional(),
+  "logisticsExpense": zod.number().optional(),
+  "utilitiesExpense": zod.number().optional(),
+  "reinvestment": zod.number().optional(),
+  "dividends": zod.number().optional(),
+  "notes": zod.string().optional()
+})
+
+export const CreateProjectEntryResponse = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "month": zod.string(),
+  "grossRevenue": zod.number(),
+  "directCosts": zod.number(),
+  "marketingExpense": zod.number(),
+  "salaryExpense": zod.number(),
+  "rentExpense": zod.number(),
+  "logisticsExpense": zod.number(),
+  "utilitiesExpense": zod.number(),
+  "reinvestment": zod.number(),
+  "dividends": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a project entry
+ */
+export const UpdateProjectEntryParams = zod.object({
+  "id": zod.coerce.number(),
+  "entryId": zod.coerce.number()
+})
+
+export const UpdateProjectEntryBody = zod.object({
+  "month": zod.string(),
+  "grossRevenue": zod.number().optional(),
+  "directCosts": zod.number().optional(),
+  "marketingExpense": zod.number().optional(),
+  "salaryExpense": zod.number().optional(),
+  "rentExpense": zod.number().optional(),
+  "logisticsExpense": zod.number().optional(),
+  "utilitiesExpense": zod.number().optional(),
+  "reinvestment": zod.number().optional(),
+  "dividends": zod.number().optional(),
+  "notes": zod.string().optional()
+})
+
+export const UpdateProjectEntryResponse = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "month": zod.string(),
+  "grossRevenue": zod.number(),
+  "directCosts": zod.number(),
+  "marketingExpense": zod.number(),
+  "salaryExpense": zod.number(),
+  "rentExpense": zod.number(),
+  "logisticsExpense": zod.number(),
+  "utilitiesExpense": zod.number(),
+  "reinvestment": zod.number(),
+  "dividends": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a project entry
+ */
+export const DeleteProjectEntryParams = zod.object({
+  "id": zod.coerce.number(),
+  "entryId": zod.coerce.number()
+})
+
+export const DeleteProjectEntryResponse = zod.void()
+
+
+/**
+ * @summary Calculate and save Davlatov wealth allocation for an amount
+ */
+export const CreateDavlatovAllocationBody = zod.object({
+  "sourceAmount": zod.number().describe('Total amount to distribute'),
+  "sourceType": zod.enum(['dividend', 'personal_income']),
+  "charityPct": zod.number().optional().describe('Charity percentage (2.5 to 10). Defaults to 10.'),
+  "notes": zod.string().optional()
+})
+
+export const CreateDavlatovAllocationResponse = zod.object({
+  "id": zod.number(),
+  "sourceType": zod.string(),
+  "sourceAmount": zod.number(),
+  "charityPct": zod.number(),
+  "charityAmt": zod.number(),
+  "parentsAmt": zod.number(),
+  "savingsAmt": zod.number(),
+  "entertainmentAmt": zod.number(),
+  "largeDreamAmt": zod.number(),
+  "smallDreamAmt": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary List all saved Davlatov allocations
+ */
+export const ListDavlatovAllocationsResponseItem = zod.object({
+  "id": zod.number(),
+  "sourceType": zod.string(),
+  "sourceAmount": zod.number(),
+  "charityPct": zod.number(),
+  "charityAmt": zod.number(),
+  "parentsAmt": zod.number(),
+  "savingsAmt": zod.number(),
+  "entertainmentAmt": zod.number(),
+  "largeDreamAmt": zod.number(),
+  "smallDreamAmt": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListDavlatovAllocationsResponse = zod.array(ListDavlatovAllocationsResponseItem)
+
+
+/**
+ * @summary Delete a Davlatov allocation
+ */
+export const DeleteDavlatovAllocationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteDavlatovAllocationResponse = zod.void()
+
+
+/**
+ * @summary List all savings goals
+ */
+export const ListGoalsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "targetAmount": zod.number(),
+  "targetMonths": zod.number(),
+  "currentAmount": zod.number(),
+  "createdAt": zod.string()
+})
+export const ListGoalsResponse = zod.array(ListGoalsResponseItem)
+
+
+/**
+ * @summary Create a new savings goal
+ */
+export const CreateGoalBody = zod.object({
+  "title": zod.string(),
+  "targetAmount": zod.number(),
+  "targetMonths": zod.number(),
+  "currentAmount": zod.number().optional()
+})
+
+export const CreateGoalResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "targetAmount": zod.number(),
+  "targetMonths": zod.number(),
+  "currentAmount": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a savings goal
+ */
+export const UpdateGoalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateGoalBody = zod.object({
+  "title": zod.string(),
+  "targetAmount": zod.number(),
+  "targetMonths": zod.number(),
+  "currentAmount": zod.number().optional()
+})
+
+export const UpdateGoalResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "targetAmount": zod.number(),
+  "targetMonths": zod.number(),
+  "currentAmount": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a savings goal
+ */
+export const DeleteGoalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteGoalResponse = zod.void()
 
 

@@ -30,7 +30,7 @@ router.put("/expenses/:id", async (req, res) => {
     .set({ category, name, amount: Number(amount), isEssential: Boolean(isEssential) })
     .where(eq(expensesTable.id, id))
     .returning();
-  if (!expense) return res.status(404).json({ error: "Expense not found" });
+  if (!expense) { res.status(404).json({ error: "Expense not found" }); return; }
   res.json(expense);
 });
 

@@ -174,6 +174,15 @@ export interface ProfileUpdate {
   crisisMode?: boolean;
 }
 
+export interface MonthlyBreakdownEntry {
+  month: string;
+  revenue: number;
+  expenses: number;
+  reinvestments: number;
+  dividends: number;
+  netProfit: number;
+}
+
 export interface DashboardSummary {
   totalDebt: number;
   totalMonthlyDebtPayment: number;
@@ -185,6 +194,10 @@ export interface DashboardSummary {
   financialRunwayMonths: number;
   debtCount: number;
   crisisMode: boolean;
+  totalProjectRevenue?: number;
+  totalProjectNetProfit?: number;
+  totalProjectDividends?: number;
+  monthlyBreakdown?: MonthlyBreakdownEntry[];
 }
 
 export interface CrisisActionStep {
@@ -254,5 +267,128 @@ export interface AIAnalysisResult {
   overallHealthScore: number;
   summary: string;
   analyzedAt: string;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  color: string;
+  createdAt: string;
+}
+
+export interface ProjectInput {
+  name: string;
+  description?: string;
+  color?: string;
+}
+
+export interface ProjectEntry {
+  id: number;
+  projectId: number;
+  month: string;
+  grossRevenue: number;
+  directCosts: number;
+  marketingExpense: number;
+  salaryExpense: number;
+  rentExpense: number;
+  logisticsExpense: number;
+  utilitiesExpense: number;
+  reinvestment: number;
+  dividends: number;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface ProjectEntryInput {
+  month: string;
+  grossRevenue?: number;
+  directCosts?: number;
+  marketingExpense?: number;
+  salaryExpense?: number;
+  rentExpense?: number;
+  logisticsExpense?: number;
+  utilitiesExpense?: number;
+  reinvestment?: number;
+  dividends?: number;
+  notes?: string;
+}
+
+export interface ProjectPnL {
+  id: number;
+  name: string;
+  color: string;
+  totalRevenue: number;
+  totalDirectCosts: number;
+  totalGrossProfit: number;
+  totalOpex: number;
+  totalNetProfit: number;
+  totalReinvestment: number;
+  totalDividends: number;
+  entryCount: number;
+}
+
+export type ProjectsSummaryTotals = {
+  grossRevenue: number;
+  netProfit: number;
+  dividends: number;
+  reinvestment: number;
+};
+
+export interface ProjectsSummary {
+  projects: ProjectPnL[];
+  totals: ProjectsSummaryTotals;
+  monthlyBreakdown: MonthlyBreakdownEntry[];
+}
+
+export type DavlatovAllocateRequestSourceType = typeof DavlatovAllocateRequestSourceType[keyof typeof DavlatovAllocateRequestSourceType];
+
+
+export const DavlatovAllocateRequestSourceType = {
+  dividend: 'dividend',
+  personal_income: 'personal_income',
+} as const;
+
+export interface DavlatovAllocateRequest {
+  /** Total amount to distribute */
+  sourceAmount: number;
+  sourceType: DavlatovAllocateRequestSourceType;
+  /** Charity percentage (2.5 to 10). Defaults to 10. */
+  charityPct?: number;
+  notes?: string;
+}
+
+export interface DavlatovAllocation {
+  id: number;
+  sourceType: string;
+  sourceAmount: number;
+  charityPct: number;
+  charityAmt: number;
+  parentsAmt: number;
+  savingsAmt: number;
+  entertainmentAmt: number;
+  largeDreamAmt: number;
+  smallDreamAmt: number;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface SavingsGoal {
+  id: number;
+  title: string;
+  targetAmount: number;
+  targetMonths: number;
+  currentAmount: number;
+  createdAt: string;
+}
+
+export interface SavingsGoalInput {
+  title: string;
+  targetAmount: number;
+  targetMonths: number;
+  currentAmount?: number;
 }
 

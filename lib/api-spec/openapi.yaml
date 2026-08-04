@@ -24,6 +24,12 @@ tags:
     description: Crisis simulation and runway analysis
   - name: ai
     description: AI financial advisor
+  - name: projects
+    description: Multi-project P&L accounting
+  - name: davlatov
+    description: Davlatov wealth allocation engine
+  - name: goals
+    description: Savings goals and milestones
 
 paths:
   /healthz:
@@ -389,6 +395,322 @@ paths:
               schema:
                 $ref: "#/components/schemas/AIAnalysisResult"
 
+  # ─── Projects ────────────────────────────────────────────────
+  /projects/summary:
+    get:
+      operationId: getProjectsSummary
+      tags: [projects]
+      summary: Get aggregate P&L summary across all projects
+      responses:
+        "200":
+          description: Projects summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectsSummary"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found
+    put:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/{id}/entries:
+    get:
+      operationId: listProjectEntries
+      tags: [projects]
+      summary: List all monthly entries for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: List of project entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectEntry"
+    post:
+      operationId: createProjectEntry
+      tags: [projects]
+      summary: Create a monthly P&L entry for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectEntryInput"
+      responses:
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectEntry"
+
+  /projects/{id}/entries/{entryId}:
+    put:
+      operationId: updateProjectEntry
+      tags: [projects]
+      summary: Update a project entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectEntryInput"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectEntry"
+    delete:
+      operationId: deleteProjectEntry
+      tags: [projects]
+      summary: Delete a project entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Davlatov ────────────────────────────────────────────────
+  /davlatov/allocate:
+    post:
+      operationId: createDavlatovAllocation
+      tags: [davlatov]
+      summary: Calculate and save Davlatov wealth allocation for an amount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DavlatovAllocateRequest"
+      responses:
+        "201":
+          description: Allocation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DavlatovAllocation"
+
+  /davlatov/allocations:
+    get:
+      operationId: listDavlatovAllocations
+      tags: [davlatov]
+      summary: List all saved Davlatov allocations
+      responses:
+        "200":
+          description: List of allocations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DavlatovAllocation"
+
+  /davlatov/allocations/{id}:
+    delete:
+      operationId: deleteDavlatovAllocation
+      tags: [davlatov]
+      summary: Delete a Davlatov allocation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Goals ───────────────────────────────────────────────────
+  /goals:
+    get:
+      operationId: listGoals
+      tags: [goals]
+      summary: List all savings goals
+      responses:
+        "200":
+          description: List of goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SavingsGoal"
+    post:
+      operationId: createGoal
+      tags: [goals]
+      summary: Create a new savings goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavingsGoalInput"
+      responses:
+        "201":
+          description: Created goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavingsGoal"
+
+  /goals/{id}:
+    put:
+      operationId: updateGoal
+      tags: [goals]
+      summary: Update a savings goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavingsGoalInput"
+      responses:
+        "200":
+          description: Updated goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavingsGoal"
+    delete:
+      operationId: deleteGoal
+      tags: [goals]
+      summary: Delete a savings goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
@@ -631,6 +953,23 @@ components:
           type: boolean
 
     # ─── Dashboard ───────────────────────────────────────────
+    MonthlyBreakdownEntry:
+      type: object
+      required: [month, revenue, expenses, reinvestments, dividends, netProfit]
+      properties:
+        month:
+          type: string
+        revenue:
+          type: number
+        expenses:
+          type: number
+        reinvestments:
+          type: number
+        dividends:
+          type: number
+        netProfit:
+          type: number
+
     DashboardSummary:
       type: object
       required: [totalDebt, totalMonthlyDebtPayment, totalMonthlyExpenses, totalMonthlyIncome, currentSavings, netMonthlyCashFlow, financialRunwayMonths, debtCount, crisisMode]
@@ -654,6 +993,16 @@ components:
           type: number
         crisisMode:
           type: boolean
+        totalProjectRevenue:
+          type: number
+        totalProjectNetProfit:
+          type: number
+        totalProjectDividends:
+          type: number
+        monthlyBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyBreakdownEntry"
 
     # ─── Crisis ──────────────────────────────────────────────
     CrisisActionStep:
@@ -752,3 +1101,219 @@ components:
           type: string
         analyzedAt:
           type: string
+
+    # ─── Projects ────────────────────────────────────────────
+    Project:
+      type: object
+      required: [id, name, color, createdAt]
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        color:
+          type: string
+        createdAt:
+          type: string
+
+    ProjectInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+
+    ProjectEntry:
+      type: object
+      required: [id, projectId, month, grossRevenue, directCosts, marketingExpense, salaryExpense, rentExpense, logisticsExpense, utilitiesExpense, reinvestment, dividends, createdAt]
+      properties:
+        id:
+          type: number
+        projectId:
+          type: number
+        month:
+          type: string
+        grossRevenue:
+          type: number
+        directCosts:
+          type: number
+        marketingExpense:
+          type: number
+        salaryExpense:
+          type: number
+        rentExpense:
+          type: number
+        logisticsExpense:
+          type: number
+        utilitiesExpense:
+          type: number
+        reinvestment:
+          type: number
+        dividends:
+          type: number
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ProjectEntryInput:
+      type: object
+      required: [month]
+      properties:
+        month:
+          type: string
+        grossRevenue:
+          type: number
+        directCosts:
+          type: number
+        marketingExpense:
+          type: number
+        salaryExpense:
+          type: number
+        rentExpense:
+          type: number
+        logisticsExpense:
+          type: number
+        utilitiesExpense:
+          type: number
+        reinvestment:
+          type: number
+        dividends:
+          type: number
+        notes:
+          type: string
+
+    ProjectPnL:
+      type: object
+      required: [id, name, color, totalRevenue, totalDirectCosts, totalGrossProfit, totalOpex, totalNetProfit, totalReinvestment, totalDividends, entryCount]
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        color:
+          type: string
+        totalRevenue:
+          type: number
+        totalDirectCosts:
+          type: number
+        totalGrossProfit:
+          type: number
+        totalOpex:
+          type: number
+        totalNetProfit:
+          type: number
+        totalReinvestment:
+          type: number
+        totalDividends:
+          type: number
+        entryCount:
+          type: number
+
+    ProjectsSummary:
+      type: object
+      required: [projects, totals, monthlyBreakdown]
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectPnL"
+        totals:
+          type: object
+          required: [grossRevenue, netProfit, dividends, reinvestment]
+          properties:
+            grossRevenue:
+              type: number
+            netProfit:
+              type: number
+            dividends:
+              type: number
+            reinvestment:
+              type: number
+        monthlyBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyBreakdownEntry"
+
+    # ─── Davlatov ────────────────────────────────────────────
+    DavlatovAllocateRequest:
+      type: object
+      required: [sourceAmount, sourceType]
+      properties:
+        sourceAmount:
+          type: number
+          description: Total amount to distribute
+        sourceType:
+          type: string
+          enum: [dividend, personal_income]
+        charityPct:
+          type: number
+          description: Charity percentage (2.5 to 10). Defaults to 10.
+        notes:
+          type: string
+
+    DavlatovAllocation:
+      type: object
+      required: [id, sourceType, sourceAmount, charityPct, charityAmt, parentsAmt, savingsAmt, entertainmentAmt, largeDreamAmt, smallDreamAmt, createdAt]
+      properties:
+        id:
+          type: number
+        sourceType:
+          type: string
+        sourceAmount:
+          type: number
+        charityPct:
+          type: number
+        charityAmt:
+          type: number
+        parentsAmt:
+          type: number
+        savingsAmt:
+          type: number
+        entertainmentAmt:
+          type: number
+        largeDreamAmt:
+          type: number
+        smallDreamAmt:
+          type: number
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    # ─── Goals ───────────────────────────────────────────────
+    SavingsGoal:
+      type: object
+      required: [id, title, targetAmount, targetMonths, currentAmount, createdAt]
+      properties:
+        id:
+          type: number
+        title:
+          type: string
+        targetAmount:
+          type: number
+        targetMonths:
+          type: number
+        currentAmount:
+          type: number
+        createdAt:
+          type: string
+
+    SavingsGoalInput:
+      type: object
+      required: [title, targetAmount, targetMonths]
+      properties:
+        title:
+          type: string
+        targetAmount:
+          type: number
+        targetMonths:
+          type: number
+        currentAmount:
+          type: number

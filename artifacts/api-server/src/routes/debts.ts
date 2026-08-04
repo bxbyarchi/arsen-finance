@@ -29,7 +29,7 @@ router.get("/debts/payoff-schedules", async (req, res) => {
   const debts = await db.select().from(debtsTable);
 
   if (debts.length === 0) {
-    return res.json({
+    res.json({
       snowball: [],
       avalanche: [],
       snowballTotalMonths: 0,
@@ -37,6 +37,7 @@ router.get("/debts/payoff-schedules", async (req, res) => {
       snowballTotalInterest: 0,
       avalancheTotalInterest: 0,
     });
+    return;
   }
 
   function calculatePayoff(sortedDebts: typeof debts) {
@@ -102,7 +103,7 @@ router.get("/debts/payoff-schedules", async (req, res) => {
 router.get("/debts/:id", async (req, res) => {
   const id = Number(req.params.id);
   const [debt] = await db.select().from(debtsTable).where(eq(debtsTable.id, id));
-  if (!debt) return res.status(404).json({ error: "Debt not found" });
+  if (!debt) { res.status(404).json({ error: "Debt not found" }); return; }
   res.json(debt);
 });
 
@@ -114,7 +115,7 @@ router.put("/debts/:id", async (req, res) => {
     .set({ creditorName, totalDebt: Number(totalDebt), monthlyPayment: Number(monthlyPayment), interestRate: Number(interestRate), dueDate, notes: notes ?? null })
     .where(eq(debtsTable.id, id))
     .returning();
-  if (!debt) return res.status(404).json({ error: "Debt not found" });
+  if (!debt) { res.status(404).json({ error: "Debt not found" }); return; }
   res.json(debt);
 });
 

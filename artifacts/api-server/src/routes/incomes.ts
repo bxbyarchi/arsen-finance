@@ -39,7 +39,7 @@ router.put("/incomes/:id", async (req, res) => {
     })
     .where(eq(incomesTable.id, id))
     .returning();
-  if (!income) return res.status(404).json({ error: "Income not found" });
+  if (!income) { res.status(404).json({ error: "Income not found" }); return; }
   res.json(income);
 });
 

@@ -5,6 +5,7 @@
  * Smart Finance & Crisis Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { MonthlyBreakdownEntry } from './monthlyBreakdownEntry';
 
 export interface DashboardSummary {
   totalDebt: number;
@@ -17,4 +18,8 @@ export interface DashboardSummary {
   financialRunwayMonths: number;
   debtCount: number;
   crisisMode: boolean;
+  totalProjectRevenue?: number;
+  totalProjectNetProfit?: number;
+  totalProjectDividends?: number;
+  monthlyBreakdown?: MonthlyBreakdownEntry[];
 }
