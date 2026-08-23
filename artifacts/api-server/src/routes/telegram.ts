@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { runPurchaseCheck } from "./advisor";
+import { runAdvisorChat } from "./advisor";
 
 const router = Router();
 const TELEGRAM_API_TIMEOUT_MS = 8_000;
@@ -76,8 +76,7 @@ export async function registerTelegramWebhook() {
 }
 
 function isAdvisorMessage(text: string) {
-  return /^(хочу купить|можно потратить)/iu.test(text)
-    || /(совет|можно ли|стоит ли|разумно ли|могу ли|нужно ли|купить|потратить|покупк)/iu.test(text);
+  return !text.startsWith("/");
 }
 
 function parseAmount(text: string) {
@@ -171,7 +170,7 @@ router.post("/telegram/webhook", async (req, res) => {
         reply = "Чтобы дать персональный совет, сначала свяжите этот Telegram-чат с аккаунтом Arsen Finance.";
       } else {
         try {
-          const advice = await runPurchaseCheck(text, ownerId);
+          const advice = await runAdvisorChat(text, [], ownerId);
           reply = advice.responseText;
         } catch (error) {
           console.error("[telegram] advisor routing failed:", error instanceof Error ? error.message : error);

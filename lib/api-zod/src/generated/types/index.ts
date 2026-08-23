@@ -6,6 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './advisorChatContext';
+export * from './advisorChatContextMarketDataStatus';
+export * from './advisorChatContextUpcomingDebtsItem';
+export * from './advisorChatHistoryItem';
+export * from './advisorChatHistoryItemRole';
+export * from './advisorChatInput';
+export * from './advisorChatResult';
+export * from './advisorChatResultVerdict';
 export * from './aIAnalysisRequest';
 export * from './aIAnalysisResult';
 export * from './aIOptimization';

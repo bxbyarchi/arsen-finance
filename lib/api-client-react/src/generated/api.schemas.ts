@@ -828,6 +828,73 @@ export interface PurchaseCheckResult {
   isFallback: boolean;
 }
 
+export type AdvisorChatHistoryItemRole = typeof AdvisorChatHistoryItemRole[keyof typeof AdvisorChatHistoryItemRole];
+
+
+export const AdvisorChatHistoryItemRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface AdvisorChatHistoryItem {
+  role: AdvisorChatHistoryItemRole;
+  content: string;
+}
+
+export interface AdvisorChatInput {
+  message: string;
+  history?: AdvisorChatHistoryItem[];
+}
+
+export type AdvisorChatContextUpcomingDebtsItem = {
+  creditor: string;
+  amount: number;
+  dueDate: string;
+};
+
+export type AdvisorChatContextMarketDataStatus = typeof AdvisorChatContextMarketDataStatus[keyof typeof AdvisorChatContextMarketDataStatus];
+
+
+export const AdvisorChatContextMarketDataStatus = {
+  live: 'live',
+  cache: 'cache',
+  unavailable: 'unavailable',
+} as const;
+
+export interface AdvisorChatContext {
+  liquidity: number;
+  upcomingObligations: number;
+  debtObligations: number;
+  activeDebtCount: number;
+  budgetTotal: number;
+  safetyReserveTarget: number;
+  riskBandAvailable: number;
+  safeToSpendNow: number;
+  upcomingDebts: AdvisorChatContextUpcomingDebtsItem[];
+  marketDataStatus: AdvisorChatContextMarketDataStatus;
+  /** @nullable */
+  inflationRateAnnual: number | null;
+}
+
+export type AdvisorChatResultVerdict = typeof AdvisorChatResultVerdict[keyof typeof AdvisorChatResultVerdict];
+
+
+export const AdvisorChatResultVerdict = {
+  YES: 'YES',
+  NO: 'NO',
+  PARTIAL: 'PARTIAL',
+  INFO: 'INFO',
+} as const;
+
+export interface AdvisorChatResult {
+  verdict: AdvisorChatResultVerdict;
+  reasoning: string;
+  action: string;
+  responseText: string;
+  context: AdvisorChatContext;
+  isFallback: boolean;
+}
+
 export type BeginBrowserLoginParams = {
 returnTo?: string;
 };

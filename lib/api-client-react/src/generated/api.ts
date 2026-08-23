@@ -22,6 +22,8 @@ import type {
 import type {
   AIAnalysisRequest,
   AIAnalysisResult,
+  AdvisorChatInput,
+  AdvisorChatResult,
   AuthUserEnvelope,
   BeginBrowserLoginParams,
   BurnRate,
@@ -2260,6 +2262,77 @@ export const useCheckPurchaseSafety = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCheckPurchaseSafetyMutationOptions(options));
+    }
+
+export const getSendAdvisorChatMessageUrl = () => {
+
+
+
+
+  return `/api/advisor/chat`
+}
+
+/**
+ * @summary Send a conversational message to the financial advisor
+ */
+export const sendAdvisorChatMessage = async (advisorChatInput: AdvisorChatInput, options?: Parameters<typeof customFetch>[1]): Promise<AdvisorChatResult> => {
+
+  return customFetch<AdvisorChatResult>(getSendAdvisorChatMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(advisorChatInput)
+  }
+);}
+
+
+
+
+
+export const getSendAdvisorChatMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAdvisorChatMessage>>, TError,{data: BodyType<AdvisorChatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendAdvisorChatMessage>>, TError,{data: BodyType<AdvisorChatInput>}, TContext> => {
+
+const mutationKey = ['sendAdvisorChatMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendAdvisorChatMessage>>, {data: BodyType<AdvisorChatInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendAdvisorChatMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendAdvisorChatMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendAdvisorChatMessage>>>
+    export type SendAdvisorChatMessageMutationBody = BodyType<AdvisorChatInput>
+    export type SendAdvisorChatMessageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Send a conversational message to the financial advisor
+ */
+export const useSendAdvisorChatMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAdvisorChatMessage>>, TError,{data: BodyType<AdvisorChatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendAdvisorChatMessage>>,
+        TError,
+        {data: BodyType<AdvisorChatInput>},
+        TContext
+      > => {
+      return useMutation(getSendAdvisorChatMessageMutationOptions(options));
     }
 
 export const getGetProjectsSummaryUrl = () => {

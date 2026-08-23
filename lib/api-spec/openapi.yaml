@@ -514,6 +514,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/PurchaseCheckResult"
 
+  /advisor/chat:
+    post:
+      operationId: sendAdvisorChatMessage
+      tags: [advisor]
+      summary: Send a conversational message to the financial advisor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdvisorChatInput"
+      responses:
+        "200":
+          description: Structured advisor chat response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdvisorChatResult"
+
   # ─── Projects ────────────────────────────────────────────────
   /projects/summary:
     get:
@@ -2153,5 +2172,82 @@ components:
           description: Formatted answer under 80 words
         context:
           $ref: "#/components/schemas/PurchaseContext"
+        isFallback:
+          type: boolean
+
+    AdvisorChatHistoryItem:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+
+    AdvisorChatInput:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdvisorChatHistoryItem"
+
+    AdvisorChatContext:
+      type: object
+      required: [liquidity, upcomingObligations, debtObligations, activeDebtCount, budgetTotal, safetyReserveTarget, riskBandAvailable, safeToSpendNow, upcomingDebts, marketDataStatus, inflationRateAnnual]
+      properties:
+        liquidity:
+          type: number
+        upcomingObligations:
+          type: number
+        debtObligations:
+          type: number
+        activeDebtCount:
+          type: number
+        budgetTotal:
+          type: number
+        safetyReserveTarget:
+          type: number
+        riskBandAvailable:
+          type: number
+        safeToSpendNow:
+          type: number
+        upcomingDebts:
+          type: array
+          items:
+            type: object
+            required: [creditor, amount, dueDate]
+            properties:
+              creditor:
+                type: string
+              amount:
+                type: number
+              dueDate:
+                type: string
+        marketDataStatus:
+          type: string
+          enum: [live, cache, unavailable]
+        inflationRateAnnual:
+          type: ["number", "null"]
+
+    AdvisorChatResult:
+      type: object
+      required: [verdict, reasoning, action, responseText, context, isFallback]
+      properties:
+        verdict:
+          type: string
+          enum: [YES, NO, PARTIAL, INFO]
+        reasoning:
+          type: string
+        action:
+          type: string
+        responseText:
+          type: string
+        context:
+          $ref: "#/components/schemas/AdvisorChatContext"
         isFallback:
           type: boolean

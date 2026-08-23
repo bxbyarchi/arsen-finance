@@ -558,6 +558,43 @@ export const CheckPurchaseSafetyResponse = zod.object({
 
 
 /**
+ * @summary Send a conversational message to the financial advisor
+ */
+export const SendAdvisorChatMessageBody = zod.object({
+  "message": zod.string(),
+  "history": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string()
+})).optional()
+})
+
+export const SendAdvisorChatMessageResponse = zod.object({
+  "verdict": zod.enum(['YES', 'NO', 'PARTIAL', 'INFO']),
+  "reasoning": zod.string(),
+  "action": zod.string(),
+  "responseText": zod.string(),
+  "context": zod.object({
+  "liquidity": zod.number(),
+  "upcomingObligations": zod.number(),
+  "debtObligations": zod.number(),
+  "activeDebtCount": zod.number(),
+  "budgetTotal": zod.number(),
+  "safetyReserveTarget": zod.number(),
+  "riskBandAvailable": zod.number(),
+  "safeToSpendNow": zod.number(),
+  "upcomingDebts": zod.array(zod.object({
+  "creditor": zod.string(),
+  "amount": zod.number(),
+  "dueDate": zod.string()
+})),
+  "marketDataStatus": zod.enum(['live', 'cache', 'unavailable']),
+  "inflationRateAnnual": zod.number().nullable()
+}),
+  "isFallback": zod.boolean()
+})
+
+
+/**
  * @summary Get aggregate P&L summary across all projects
  */
 export const GetProjectsSummaryResponse = zod.object({
