@@ -5,6 +5,22 @@
  * Smart Finance & Crisis Manager API
  * OpenAPI spec version: 0.1.0
  */
+export interface AuthUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  profileImageUrl: string | null;
+}
+
+export interface AuthUserEnvelope {
+  user: AuthUser | null;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -641,8 +657,6 @@ export interface HypothesisReflectionInput {
 export interface PurchaseCheckInput {
   /** Natural language purchase request */
   query: string;
-  /** Current user or Telegram sender ID */
-  user_id: number;
 }
 
 export interface PlannedIncome {
@@ -685,9 +699,16 @@ export interface PurchaseCheckResult {
   partialAmount?: number | null;
   reasoning: string;
   action: string;
-  /** Formatted answer under 80 words for API and Telegram */
+  /** Formatted answer under 80 words */
   responseText: string;
   context: PurchaseContext;
   isFallback: boolean;
 }
 
+export type BeginBrowserLoginParams = {
+returnTo?: string;
+};
+
+export type LogoutBrowserSessionParams = {
+returnTo?: string;
+};

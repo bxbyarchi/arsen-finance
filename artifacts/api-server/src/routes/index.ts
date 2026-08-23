@@ -13,10 +13,19 @@ import financialResilienceRouter from "./financial-resilience";
 import hypothesesRouter from "./hypotheses";
 import advisorRouter from "./advisor";
 import telegramRouter from "./telegram";
+import authRouter from "./auth";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(authRouter);
+router.use(telegramRouter);
+router.use(requireAuth);
+router.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  next();
+});
 router.use(debtsRouter);
 router.use(expensesRouter);
 router.use(incomesRouter);
@@ -29,6 +38,5 @@ router.use(behavioralRouter);
 router.use(financialResilienceRouter);
 router.use(hypothesesRouter);
 router.use(advisorRouter);
-router.use(telegramRouter);
 
 export default router;

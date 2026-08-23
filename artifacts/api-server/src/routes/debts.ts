@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, debtsTable } from "@workspace/db";
 
 const router = Router();
 
 // GET /debts
 router.get("/debts", async (req, res) => {
-  const debts = await db.select().from(debtsTable).orderBy(debtsTable.createdAt);
+  const debts = await db.select().from(debtsTable).where(eq(debtsTable.ownerId, req.user!.id)).orderBy(debtsTable.createdAt);
   res.json(debts);
 });
 
@@ -14,6 +14,7 @@ router.get("/debts", async (req, res) => {
 router.post("/debts", async (req, res) => {
   const { creditorName, totalDebt, monthlyPayment, interestRate, dueDate, notes } = req.body;
   const [debt] = await db.insert(debtsTable).values({
+    ownerId: req.user!.id,
     creditorName,
     totalDebt: Number(totalDebt),
     monthlyPayment: Number(monthlyPayment),
@@ -26,7 +27,7 @@ router.post("/debts", async (req, res) => {
 
 // GET /debts/payoff-schedules  (must come before /:id)
 router.get("/debts/payoff-schedules", async (req, res) => {
-  const debts = await db.select().from(debtsTable);
+  const debts = await db.select().from(debtsTable).where(eq(debtsTable.ownerId, req.user!.id));
 
   if (debts.length === 0) {
     res.json({
@@ -102,7 +103,8 @@ router.get("/debts/payoff-schedules", async (req, res) => {
 // GET /debts/:id
 router.get("/debts/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const [debt] = await db.select().from(debtsTable).where(eq(debtsTable.id, id));
+  const [debt] = await db.select().from(debtsTable)
+    .where(and(eq(debtsTable.id, id), eq(debtsTable.ownerId, req.user!.id)));
   if (!debt) { res.status(404).json({ error: "Debt not found" }); return; }
   res.json(debt);
 });
@@ -113,7 +115,7 @@ router.put("/debts/:id", async (req, res) => {
   const { creditorName, totalDebt, monthlyPayment, interestRate, dueDate, notes } = req.body;
   const [debt] = await db.update(debtsTable)
     .set({ creditorName, totalDebt: Number(totalDebt), monthlyPayment: Number(monthlyPayment), interestRate: Number(interestRate), dueDate, notes: notes ?? null })
-    .where(eq(debtsTable.id, id))
+    .where(and(eq(debtsTable.id, id), eq(debtsTable.ownerId, req.user!.id)))
     .returning();
   if (!debt) { res.status(404).json({ error: "Debt not found" }); return; }
   res.json(debt);
@@ -122,7 +124,10 @@ router.put("/debts/:id", async (req, res) => {
 // DELETE /debts/:id
 router.delete("/debts/:id", async (req, res) => {
   const id = Number(req.params.id);
-  await db.delete(debtsTable).where(eq(debtsTable.id, id));
+  const [deleted] = await db.delete(debtsTable)
+    .where(and(eq(debtsTable.id, id), eq(debtsTable.ownerId, req.user!.id)))
+    .returning({ id: debtsTable.id });
+  if (!deleted) { res.status(404).json({ error: "Debt not found" }); return; }
   res.status(204).end();
 });
 

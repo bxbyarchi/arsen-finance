@@ -9,6 +9,46 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get the signed-in user
+ */
+export const GetCurrentAuthUserResponse = zod.object({
+  "user": zod.union([zod.object({
+  "id": zod.string(),
+  "email": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "profileImageUrl": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Start the secure browser sign-in flow
+ */
+export const BeginBrowserLoginQueryParams = zod.object({
+  "returnTo": zod.coerce.string().optional()
+})
+
+export const BeginBrowserLoginResponse = zod.void()
+
+
+/**
+ * @summary Complete the secure browser sign-in flow
+ */
+export const HandleBrowserLoginCallbackResponse = zod.void()
+
+
+/**
+ * @summary End the current browser session
+ */
+export const LogoutBrowserSessionQueryParams = zod.object({
+  "returnTo": zod.coerce.string().optional()
+})
+
+export const LogoutBrowserSessionResponse = zod.void()
+
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -443,8 +483,7 @@ export const AnalyzeFinancesResponse = zod.object({
  * @summary Check whether a planned purchase is safe
  */
 export const CheckPurchaseSafetyBody = zod.object({
-  "query": zod.string().describe('Natural language purchase request'),
-  "user_id": zod.number().describe('Current user or Telegram sender ID')
+  "query": zod.string().describe('Natural language purchase request')
 })
 
 export const CheckPurchaseSafetyResponse = zod.object({
@@ -452,7 +491,7 @@ export const CheckPurchaseSafetyResponse = zod.object({
   "partialAmount": zod.number().nullish(),
   "reasoning": zod.string(),
   "action": zod.string(),
-  "responseText": zod.string().describe('Formatted answer under 80 words for API and Telegram'),
+  "responseText": zod.string().describe('Formatted answer under 80 words'),
   "context": zod.object({
   "requestedAmount": zod.number(),
   "requestedCategory": zod.string(),
@@ -1079,5 +1118,3 @@ export const ReflectOnBusinessHypothesisResponse = zod.object({
   "keyLessons": zod.string().nullish(),
   "createdAt": zod.string()
 })
-
-

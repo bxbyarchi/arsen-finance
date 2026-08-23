@@ -7,11 +7,12 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Wallet, Receipt, TrendingUp, ShieldAlert, BrainCircuit,
-  Moon, Sun, BarChart3, PiggyBank, Target, HeartHandshake, ShieldCheck, Beaker
+  Moon, Sun, BarChart3, PiggyBank, Target, HeartHandshake, ShieldCheck, Beaker, LogOut
 } from "lucide-react";
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@workspace/replit-auth-web";
 
 const personalNav = [
   { name: "Дашборд",            href: "/",        icon: LayoutDashboard },
@@ -102,6 +103,7 @@ function AppSidebar() {
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -117,9 +119,15 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <header className="h-16 flex items-center gap-4 border-b bg-card px-6 sticky top-0 z-10 transition-colors duration-300">
             <SidebarTrigger />
             <h1 className="text-lg font-semibold truncate flex-1 tracking-tight">ARSEN | Personal Financial OS</h1>
+            <span className="hidden max-w-44 truncate text-sm text-muted-foreground md:block">
+              {user?.firstName ?? user?.email ?? "Личный кабинет"}
+            </span>
             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "light" ? "dark" : "light")}
               className="text-muted-foreground hover:text-foreground">
               {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={logout} aria-label="Выйти из аккаунта" title="Выйти">
+              <LogOut className="h-5 w-5" />
             </Button>
           </header>
           <main className="flex-1 p-6 md:p-8 overflow-y-auto max-w-[1600px] w-full mx-auto">

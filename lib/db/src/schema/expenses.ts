@@ -1,6 +1,7 @@
 import { pgEnum, pgTable, serial, text, real, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./auth";
 
 export const emotionalTriggerEnum = pgEnum("emotional_trigger", [
   "routine",
@@ -11,6 +12,7 @@ export const emotionalTriggerEnum = pgEnum("emotional_trigger", [
 
 export const expensesTable = pgTable("expenses", {
   id: serial("id").primaryKey(),
+  ownerId: text("owner_id").references(() => usersTable.id, { onDelete: "cascade" }),
   category: text("category").notNull(), // housing, food, transport, utilities, health, miscellaneous
   name: text("name").notNull(),
   amount: real("amount").notNull(),
@@ -20,6 +22,6 @@ export const expensesTable = pgTable("expenses", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertExpenseSchema = createInsertSchema(expensesTable).omit({ id: true, createdAt: true });
+export const insertExpenseSchema = createInsertSchema(expensesTable).omit({ id: true, ownerId: true, createdAt: true });
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 export type Expense = typeof expensesTable.$inferSelect;

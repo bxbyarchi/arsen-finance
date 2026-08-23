@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { db, savingsGoalsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const router = Router();
 
 // GET /goals
 router.get("/goals", async (req, res) => {
-  const goals = await db.select().from(savingsGoalsTable).orderBy(savingsGoalsTable.targetMonths);
+  const goals = await db.select().from(savingsGoalsTable)
+    .where(eq(savingsGoalsTable.ownerId, req.user!.id))
+    .orderBy(savingsGoalsTable.targetMonths);
   res.json(goals);
 });
 
@@ -29,6 +31,7 @@ router.post("/goals", async (req, res) => {
     return;
   }
   const [goal] = await db.insert(savingsGoalsTable).values({
+    ownerId: req.user!.id,
     title: title.trim(), targetAmount: target, targetMonths: months, currentAmount: isFinite(current) ? Math.max(0, current) : 0,
   }).returning();
   res.status(201).json(goal);
@@ -64,7 +67,7 @@ router.put("/goals/:id", async (req, res) => {
       targetMonths: months,
       currentAmount: isFinite(current) ? Math.max(0, current) : 0,
     })
-    .where(eq(savingsGoalsTable.id, id))
+    .where(and(eq(savingsGoalsTable.id, id), eq(savingsGoalsTable.ownerId, req.user!.id)))
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Not found" });
@@ -80,7 +83,10 @@ router.delete("/goals/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  await db.delete(savingsGoalsTable).where(eq(savingsGoalsTable.id, id));
+  const [deleted] = await db.delete(savingsGoalsTable)
+    .where(and(eq(savingsGoalsTable.id, id), eq(savingsGoalsTable.ownerId, req.user!.id)))
+    .returning({ id: savingsGoalsTable.id });
+  if (!deleted) { res.status(404).json({ error: "Not found" }); return; }
   res.status(204).send();
 });
 

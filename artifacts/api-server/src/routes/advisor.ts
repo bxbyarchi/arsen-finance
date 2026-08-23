@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
 import { db, debtsTable, expensesTable, incomesTable, profileTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
@@ -18,7 +19,6 @@ const CATEGORY_ALIASES: Record<string, string> = {
 type Verdict = "YES" | "NO" | "PARTIAL";
 
 interface PurchaseContext {
-  userId: number;
   query: string;
   requestedAmount: number;
   requestedCategory: string;
@@ -41,7 +41,7 @@ interface PurchaseCheckResult {
   reasoning: string;
   action: string;
   responseText: string;
-  context: Omit<PurchaseContext, "userId" | "query">;
+  context: Omit<PurchaseContext, "query">;
   isFallback: boolean;
 }
 
@@ -101,12 +101,12 @@ function formatResponse(verdict: Verdict, partialAmount: number | null, reasonin
   ].join("\n");
 }
 
-async function gatherContext(query: string, userId: number): Promise<PurchaseContext> {
+async function gatherContext(query: string, ownerId: string): Promise<PurchaseContext> {
   const [profiles, expenses, debts, incomes] = await Promise.all([
-    db.select().from(profileTable).limit(1),
-    db.select().from(expensesTable),
-    db.select().from(debtsTable),
-    db.select().from(incomesTable),
+    db.select().from(profileTable).where(eq(profileTable.ownerId, ownerId)).limit(1),
+    db.select().from(expensesTable).where(eq(expensesTable.ownerId, ownerId)),
+    db.select().from(debtsTable).where(eq(debtsTable.ownerId, ownerId)),
+    db.select().from(incomesTable).where(eq(incomesTable.ownerId, ownerId)),
   ]);
   const profile = profiles[0];
   const month = currentMonth();
@@ -142,7 +142,6 @@ async function gatherContext(query: string, userId: number): Promise<PurchaseCon
   const safeToSpendNow = Math.max(0, liquidity - upcomingObligations - minimumReserve);
 
   return {
-    userId,
     query,
     requestedAmount,
     requestedCategory: category,
@@ -226,8 +225,8 @@ async function askGemini(context: PurchaseContext, safeAdvice: ReturnType<typeof
   };
 }
 
-export async function runPurchaseCheck(query: string, userId: number): Promise<PurchaseCheckResult> {
-  const context = await gatherContext(query, userId);
+export async function runPurchaseCheck(query: string, ownerId: string): Promise<PurchaseCheckResult> {
+  const context = await gatherContext(query, ownerId);
   const safeAdvice = deterministicAdvice(context);
   let reasoning = safeAdvice.reasoning;
   let action = safeAdvice.action;
@@ -270,13 +269,12 @@ export async function runPurchaseCheck(query: string, userId: number): Promise<P
 // POST /advisor/purchase-check
 router.post("/advisor/purchase-check", async (req, res) => {
   const query = typeof req.body?.query === "string" ? req.body.query.trim() : "";
-  const userId = req.body?.user_id;
-  if (!query || typeof userId !== "number" || !Number.isInteger(userId) || userId <= 0) {
-    res.status(400).json({ error: "query and a positive integer user_id are required" });
+  if (!query) {
+    res.status(400).json({ error: "query is required" });
     return;
   }
   try {
-    res.json(await runPurchaseCheck(query, userId));
+    res.json(await runPurchaseCheck(query, req.user!.id));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to check purchase";
     res.status(400).json({ error: message });

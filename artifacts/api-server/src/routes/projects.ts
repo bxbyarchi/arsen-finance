@@ -26,8 +26,8 @@ function isValidMonth(m: unknown): m is string {
 // GET /projects/summary — must be BEFORE /projects/:id
 router.get("/projects/summary", async (req, res) => {
   const [projects, entries] = await Promise.all([
-    db.select().from(projectsTable).orderBy(projectsTable.createdAt),
-    db.select().from(projectEntriesTable).orderBy(projectEntriesTable.month),
+    db.select().from(projectsTable).where(eq(projectsTable.ownerId, req.user!.id)).orderBy(projectsTable.createdAt),
+    db.select().from(projectEntriesTable).where(eq(projectEntriesTable.ownerId, req.user!.id)).orderBy(projectEntriesTable.month),
   ]);
 
   const pnlMap = new Map<number, {
@@ -85,7 +85,9 @@ router.get("/projects/summary", async (req, res) => {
 
 // GET /projects
 router.get("/projects", async (req, res) => {
-  const projects = await db.select().from(projectsTable).orderBy(desc(projectsTable.createdAt));
+  const projects = await db.select().from(projectsTable)
+    .where(eq(projectsTable.ownerId, req.user!.id))
+    .orderBy(desc(projectsTable.createdAt));
   res.json(projects);
 });
 
@@ -97,7 +99,7 @@ router.post("/projects", async (req, res) => {
     return;
   }
   const [project] = await db.insert(projectsTable).values({
-    name: name.trim(), description: description || null, color: color || "#6366f1",
+    ownerId: req.user!.id, name: name.trim(), description: description || null, color: color || "#6366f1",
   }).returning();
   res.status(201).json(project);
 });
@@ -109,7 +111,8 @@ router.get("/projects/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  const [project] = await db.select().from(projectsTable)
+    .where(and(eq(projectsTable.id, id), eq(projectsTable.ownerId, req.user!.id)));
   if (!project) {
     res.status(404).json({ error: "Not found" });
     return;
@@ -131,7 +134,7 @@ router.put("/projects/:id", async (req, res) => {
   }
   const [updated] = await db.update(projectsTable)
     .set({ name: name.trim(), description: description || null, color: color || "#6366f1" })
-    .where(eq(projectsTable.id, id))
+    .where(and(eq(projectsTable.id, id), eq(projectsTable.ownerId, req.user!.id)))
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Not found" });
@@ -147,7 +150,13 @@ router.delete("/projects/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  await db.delete(projectsTable).where(eq(projectsTable.id, id));
+  const [deleted] = await db.delete(projectsTable)
+    .where(and(eq(projectsTable.id, id), eq(projectsTable.ownerId, req.user!.id)))
+    .returning({ id: projectsTable.id });
+  if (!deleted) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   res.status(204).send();
 });
 
@@ -159,7 +168,10 @@ router.get("/projects/:id/entries", async (req, res) => {
     return;
   }
   const entries = await db.select().from(projectEntriesTable)
-    .where(eq(projectEntriesTable.projectId, projectId))
+    .where(and(
+      eq(projectEntriesTable.projectId, projectId),
+      eq(projectEntriesTable.ownerId, req.user!.id),
+    ))
     .orderBy(desc(projectEntriesTable.month));
   res.json(entries.map(calcEntry));
 });
@@ -176,8 +188,14 @@ router.post("/projects/:id/entries", async (req, res) => {
     res.status(400).json({ error: "month is required and must be a valid YYYY-MM calendar month" });
     return;
   }
+  const [project] = await db.select({ id: projectsTable.id }).from(projectsTable)
+    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.ownerId, req.user!.id)));
+  if (!project) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   const [entry] = await db.insert(projectEntriesTable).values({
-    projectId, month,
+    ownerId: req.user!.id, projectId, month,
     grossRevenue: safeNum(req.body.grossRevenue),
     directCosts: safeNum(req.body.directCosts),
     marketingExpense: safeNum(req.body.marketingExpense),
@@ -219,7 +237,11 @@ router.put("/projects/:id/entries/:entryId", async (req, res) => {
       dividends: safeNum(req.body.dividends),
       notes: notes || null,
     })
-    .where(and(eq(projectEntriesTable.id, entryId), eq(projectEntriesTable.projectId, projectId)))
+    .where(and(
+      eq(projectEntriesTable.id, entryId),
+      eq(projectEntriesTable.projectId, projectId),
+      eq(projectEntriesTable.ownerId, req.user!.id),
+    ))
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Not found" });
@@ -236,8 +258,17 @@ router.delete("/projects/:id/entries/:entryId", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  await db.delete(projectEntriesTable)
-    .where(and(eq(projectEntriesTable.id, entryId), eq(projectEntriesTable.projectId, projectId)));
+  const [deleted] = await db.delete(projectEntriesTable)
+    .where(and(
+      eq(projectEntriesTable.id, entryId),
+      eq(projectEntriesTable.projectId, projectId),
+      eq(projectEntriesTable.ownerId, req.user!.id),
+    ))
+    .returning({ id: projectEntriesTable.id });
+  if (!deleted) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   res.status(204).send();
 });
 

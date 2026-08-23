@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, expensesTable } from "@workspace/db";
 
 const router = Router();
@@ -39,7 +39,9 @@ function isExpenseInput(body: Record<string, unknown>): body is ExpenseInputBody
 
 // GET /expenses
 router.get("/expenses", async (req, res) => {
-  const expenses = await db.select().from(expensesTable).orderBy(expensesTable.category);
+  const expenses = await db.select().from(expensesTable)
+    .where(eq(expensesTable.ownerId, req.user!.id))
+    .orderBy(expensesTable.category);
   res.json(expenses);
 });
 
@@ -52,6 +54,7 @@ router.post("/expenses", async (req, res) => {
   }
   const { category, name, amount, isEssential, emotionalTrigger, isImpulseBuy } = body;
   const [expense] = await db.insert(expensesTable).values({
+    ownerId: req.user!.id,
     category,
     name: name.trim(),
     amount,
@@ -81,7 +84,7 @@ router.put("/expenses/:id", async (req, res) => {
   };
   const [expense] = await db.update(expensesTable)
     .set(updates)
-    .where(eq(expensesTable.id, id))
+    .where(and(eq(expensesTable.id, id), eq(expensesTable.ownerId, req.user!.id)))
     .returning();
   if (!expense) { res.status(404).json({ error: "Expense not found" }); return; }
   res.json(expense);
@@ -90,13 +93,16 @@ router.put("/expenses/:id", async (req, res) => {
 // DELETE /expenses/:id
 router.delete("/expenses/:id", async (req, res) => {
   const id = Number(req.params.id);
-  await db.delete(expensesTable).where(eq(expensesTable.id, id));
+  const [deleted] = await db.delete(expensesTable)
+    .where(and(eq(expensesTable.id, id), eq(expensesTable.ownerId, req.user!.id)))
+    .returning({ id: expensesTable.id });
+  if (!deleted) { res.status(404).json({ error: "Expense not found" }); return; }
   res.status(204).end();
 });
 
 // GET /expenses/burn-rate
 router.get("/expenses/burn-rate", async (req, res) => {
-  const expenses = await db.select().from(expensesTable);
+  const expenses = await db.select().from(expensesTable).where(eq(expensesTable.ownerId, req.user!.id));
 
   const categories = ["housing", "food", "transport", "utilities", "health", "miscellaneous"];
   const byCategory = categories.map(cat => {

@@ -14,7 +14,7 @@ export interface PurchaseCheckResult {
   partialAmount?: number | null;
   reasoning: string;
   action: string;
-  /** Formatted answer under 80 words for API and Telegram */
+  /** Formatted answer under 80 words */
   responseText: string;
   context: PurchaseContext;
   isFallback: boolean;

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, businessHypothesesTable } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 const router = Router();
 const STATUSES = ["learning_zone", "performance_zone", "archived"] as const;
@@ -17,7 +17,9 @@ function amount(value: unknown): number | null {
 
 // GET /hypotheses
 router.get("/hypotheses", async (req, res) => {
-  const hypotheses = await db.select().from(businessHypothesesTable).orderBy(desc(businessHypothesesTable.createdAt));
+  const hypotheses = await db.select().from(businessHypothesesTable)
+    .where(eq(businessHypothesesTable.ownerId, req.user!.id))
+    .orderBy(desc(businessHypothesesTable.createdAt));
   res.json(hypotheses);
 });
 
@@ -33,7 +35,7 @@ router.post("/hypotheses", async (req, res) => {
     return;
   }
   const [created] = await db.insert(businessHypothesesTable).values({
-    title, status, projectedBudget, actualRiskImpact,
+    ownerId: req.user!.id, title, status, projectedBudget, actualRiskImpact,
     keyLessons: typeof body.keyLessons === "string" ? body.keyLessons.trim() || null : null,
   }).returning();
   res.status(201).json(created);
@@ -77,7 +79,7 @@ router.patch("/hypotheses/:id", async (req, res) => {
   }
   const [updated] = await db.update(businessHypothesesTable)
     .set(updates)
-    .where(eq(businessHypothesesTable.id, id))
+    .where(and(eq(businessHypothesesTable.id, id), eq(businessHypothesesTable.ownerId, req.user!.id)))
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Hypothesis not found" });
@@ -110,7 +112,7 @@ router.post("/hypotheses/:id/reflection", async (req, res) => {
   }
   const [updated] = await db.update(businessHypothesesTable)
     .set({ keyLessons: reflection, status: "archived" })
-    .where(eq(businessHypothesesTable.id, id))
+    .where(and(eq(businessHypothesesTable.id, id), eq(businessHypothesesTable.ownerId, req.user!.id)))
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Hypothesis not found" });
@@ -126,7 +128,13 @@ router.delete("/hypotheses/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  await db.delete(businessHypothesesTable).where(eq(businessHypothesesTable.id, id));
+  const [deleted] = await db.delete(businessHypothesesTable)
+    .where(and(eq(businessHypothesesTable.id, id), eq(businessHypothesesTable.ownerId, req.user!.id)))
+    .returning({ id: businessHypothesesTable.id });
+  if (!deleted) {
+    res.status(404).json({ error: "Hypothesis not found" });
+    return;
+  }
   res.status(204).send();
 });
 

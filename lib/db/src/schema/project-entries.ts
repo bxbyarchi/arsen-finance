@@ -2,9 +2,11 @@ import { pgTable, serial, integer, text, real, timestamp } from "drizzle-orm/pg-
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { projectsTable } from "./projects";
+import { usersTable } from "./auth";
 
 export const projectEntriesTable = pgTable("project_entries", {
   id: serial("id").primaryKey(),
+  ownerId: text("owner_id").references(() => usersTable.id, { onDelete: "cascade" }),
   projectId: integer("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
   month: text("month").notNull(), // YYYY-MM
   grossRevenue: real("gross_revenue").notNull().default(0),
@@ -20,6 +22,6 @@ export const projectEntriesTable = pgTable("project_entries", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertProjectEntrySchema = createInsertSchema(projectEntriesTable).omit({ id: true, createdAt: true });
+export const insertProjectEntrySchema = createInsertSchema(projectEntriesTable).omit({ id: true, ownerId: true, createdAt: true });
 export type InsertProjectEntry = z.infer<typeof insertProjectEntrySchema>;
 export type ProjectEntry = typeof projectEntriesTable.$inferSelect;

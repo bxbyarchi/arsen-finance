@@ -8,6 +8,8 @@ servers:
   - url: /api
     description: Base API path
 tags:
+  - name: Auth
+    description: Browser authentication endpoints
   - name: health
     description: Health operations
   - name: debts
@@ -40,6 +42,54 @@ tags:
     description: Business learning sandbox
 
 paths:
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the signed-in user
+      responses:
+        "200":
+          description: Authentication status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserEnvelope"
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the secure browser sign-in flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the identity provider
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the secure browser sign-in flow
+      responses:
+        "302":
+          description: Redirect to the app after authentication
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: End the current browser session
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect after logout
   /healthz:
     get:
       operationId: healthCheck
@@ -975,6 +1025,28 @@ paths:
 
 components:
   schemas:
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, "null"]
+        firstName:
+          type: [string, "null"]
+        lastName:
+          type: [string, "null"]
+        profileImageUrl:
+          type: [string, "null"]
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/AuthUser"
+            - type: "null"
     HealthStatus:
       type: object
       properties:
@@ -1805,14 +1877,11 @@ components:
     # ─── Purchase advisor ─────────────────────────────────────
     PurchaseCheckInput:
       type: object
-      required: [query, user_id]
+      required: [query]
       properties:
         query:
           type: string
           description: Natural language purchase request
-        user_id:
-          type: number
-          description: Current user or Telegram sender ID
 
     PlannedIncome:
       type: object
@@ -1875,7 +1944,7 @@ components:
           type: string
         responseText:
           type: string
-          description: Formatted answer under 80 words for API and Telegram
+          description: Formatted answer under 80 words
         context:
           $ref: "#/components/schemas/PurchaseContext"
         isFallback:

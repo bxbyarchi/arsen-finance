@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, expensesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const router = Router();
 
@@ -84,7 +84,7 @@ router.post("/transactions/classify", async (req, res) => {
   if (expenseId !== undefined) {
     const [updated] = await db.update(expensesTable)
       .set(values)
-      .where(eq(expensesTable.id, expenseId))
+      .where(and(eq(expensesTable.id, expenseId), eq(expensesTable.ownerId, req.user!.id)))
       .returning();
     if (!updated) {
       res.status(404).json({ error: "Expense not found" });
@@ -92,7 +92,7 @@ router.post("/transactions/classify", async (req, res) => {
     }
     expense = updated;
   } else {
-    [expense] = await db.insert(expensesTable).values(values).returning();
+    [expense] = await db.insert(expensesTable).values({ ownerId: req.user!.id, ...values }).returning();
   }
 
   res.status(201).json({

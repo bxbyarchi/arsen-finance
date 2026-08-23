@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
 import { db, debtsTable, expensesTable, incomesTable, profileTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
@@ -29,10 +30,10 @@ interface AnalysisResult {
 // POST /ai/analyze
 router.post("/ai/analyze", async (req, res) => {
   const [debts, expenses, incomes, profiles] = await Promise.all([
-    db.select().from(debtsTable),
-    db.select().from(expensesTable),
-    db.select().from(incomesTable),
-    db.select().from(profileTable).limit(1),
+    db.select().from(debtsTable).where(eq(debtsTable.ownerId, req.user!.id)),
+    db.select().from(expensesTable).where(eq(expensesTable.ownerId, req.user!.id)),
+    db.select().from(incomesTable).where(eq(incomesTable.ownerId, req.user!.id)),
+    db.select().from(profileTable).where(eq(profileTable.ownerId, req.user!.id)).limit(1),
   ]);
 
   const profile = profiles[0] ?? { currentSavings: 0, crisisMode: false };

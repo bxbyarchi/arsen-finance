@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, davlatovAllocationsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -34,6 +34,7 @@ router.post("/davlatov/allocate", async (req, res) => {
   const smallDreamAmt = Math.round(remaining * 0.50 * 100) / 100;
 
   const [allocation] = await db.insert(davlatovAllocationsTable).values({
+    ownerId: req.user!.id,
     sourceType, sourceAmount: amount, charityPct,
     charityAmt, parentsAmt, savingsAmt, entertainmentAmt,
     largeDreamAmt, smallDreamAmt,
@@ -45,7 +46,9 @@ router.post("/davlatov/allocate", async (req, res) => {
 
 // GET /davlatov/allocations
 router.get("/davlatov/allocations", async (req, res) => {
-  const allocations = await db.select().from(davlatovAllocationsTable).orderBy(desc(davlatovAllocationsTable.createdAt));
+  const allocations = await db.select().from(davlatovAllocationsTable)
+    .where(eq(davlatovAllocationsTable.ownerId, req.user!.id))
+    .orderBy(desc(davlatovAllocationsTable.createdAt));
   res.json(allocations);
 });
 
@@ -56,7 +59,10 @@ router.delete("/davlatov/allocations/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  await db.delete(davlatovAllocationsTable).where(eq(davlatovAllocationsTable.id, id));
+  const [deleted] = await db.delete(davlatovAllocationsTable)
+    .where(and(eq(davlatovAllocationsTable.id, id), eq(davlatovAllocationsTable.ownerId, req.user!.id)))
+    .returning({ id: davlatovAllocationsTable.id });
+  if (!deleted) { res.status(404).json({ error: "Allocation not found" }); return; }
   res.status(204).send();
 });
 

@@ -6,6 +6,7 @@ export * from "./projects";
 export * from "./project-entries";
 export * from "./davlatov-allocations";
 export * from "./savings-goals";
+export * from "./auth";
 export * from "./user-financial-profiles";
 export * from "./business-hypotheses";
 export * from "./digital-vault-docs";

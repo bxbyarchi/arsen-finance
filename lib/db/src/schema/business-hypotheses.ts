@@ -1,9 +1,11 @@
 import { pgTable, serial, text, real, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./auth";
 
 export const businessHypothesesTable = pgTable("business_hypotheses", {
   id: serial("id").primaryKey(),
+  ownerId: text("owner_id").references(() => usersTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   status: text("status").notNull().default("learning_zone"),
   projectedBudget: real("projected_budget").notNull().default(0),
@@ -12,6 +14,6 @@ export const businessHypothesesTable = pgTable("business_hypotheses", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertBusinessHypothesisSchema = createInsertSchema(businessHypothesesTable).omit({ id: true, createdAt: true });
+export const insertBusinessHypothesisSchema = createInsertSchema(businessHypothesesTable).omit({ id: true, ownerId: true, createdAt: true });
 export type InsertBusinessHypothesis = z.infer<typeof insertBusinessHypothesisSchema>;
 export type BusinessHypothesis = typeof businessHypothesesTable.$inferSelect;

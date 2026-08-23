@@ -4,7 +4,7 @@ import {
   digitalVaultDocsTable,
   userFinancialProfilesTable,
 } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 const router = Router();
 
@@ -30,11 +30,12 @@ function publicDoc(doc: typeof digitalVaultDocsTable.$inferSelect) {
   };
 }
 
-async function ensureFinancialProfile() {
-  const [existing] = await db.select().from(userFinancialProfilesTable).limit(1);
+async function ensureFinancialProfile(userId: string) {
+  const [existing] = await db.select().from(userFinancialProfilesTable)
+    .where(eq(userFinancialProfilesTable.userId, userId));
   if (existing) return existing;
   const [created] = await db.insert(userFinancialProfilesTable).values({
-    userId: "default",
+    userId,
     moneyScriptType: "vigilance",
     riskToleranceIndex: 50,
     autonomyScore: 0,
@@ -42,8 +43,10 @@ async function ensureFinancialProfile() {
   return created;
 }
 
-async function getAutonomySummary() {
-  const docs = await db.select().from(digitalVaultDocsTable).orderBy(desc(digitalVaultDocsTable.createdAt));
+async function getAutonomySummary(userId: string) {
+  const docs = await db.select().from(digitalVaultDocsTable)
+    .where(eq(digitalVaultDocsTable.ownerId, userId))
+    .orderBy(desc(digitalVaultDocsTable.createdAt));
   const now = Date.now();
   const staleAfterMs = 60 * 24 * 60 * 60 * 1000;
   const warnings: string[] = [];
@@ -63,7 +66,7 @@ async function getAutonomySummary() {
     };
   });
   const autonomyScore = Math.round(categoryStatus.reduce((sum, item) => sum + (item.verified ? 25 : item.present ? 10 : 0), 0));
-  const profile = await ensureFinancialProfile();
+  const profile = await ensureFinancialProfile(userId);
   if (profile.autonomyScore !== autonomyScore) {
     await db.update(userFinancialProfilesTable)
       .set({ autonomyScore, updatedAt: new Date() })
@@ -79,13 +82,13 @@ async function getAutonomySummary() {
 
 // GET /financial-profile
 router.get("/financial-profile", async (req, res) => {
-  const profile = await ensureFinancialProfile();
+  const profile = await ensureFinancialProfile(req.user!.id);
   res.json(profile);
 });
 
 // PATCH /financial-profile
 router.patch("/financial-profile", async (req, res) => {
-  const profile = await ensureFinancialProfile();
+  const profile = await ensureFinancialProfile(req.user!.id);
   const body = req.body as Record<string, unknown>;
   const updates: Partial<typeof profile> = {};
 
@@ -113,7 +116,7 @@ router.patch("/financial-profile", async (req, res) => {
 
 // GET /vault
 router.get("/vault", async (req, res) => {
-  res.json(await getAutonomySummary());
+  res.json(await getAutonomySummary(req.user!.id));
 });
 
 // POST /vault
@@ -134,7 +137,7 @@ router.post("/vault", async (req, res) => {
     return;
   }
   const [created] = await db.insert(digitalVaultDocsTable).values({
-    docCategory, title, encryptedPayload, lastVerifiedAt,
+    ownerId: req.user!.id, docCategory, title, encryptedPayload, lastVerifiedAt,
   }).returning();
   res.status(201).json(publicDoc(created));
 });
@@ -178,7 +181,7 @@ router.patch("/vault/:id", async (req, res) => {
   }
   const [updated] = await db.update(digitalVaultDocsTable)
     .set(updates)
-    .where(eq(digitalVaultDocsTable.id, id))
+    .where(and(eq(digitalVaultDocsTable.id, id), eq(digitalVaultDocsTable.ownerId, req.user!.id)))
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Vault document not found" });
@@ -196,7 +199,7 @@ router.post("/vault/:id/verify", async (req, res) => {
   }
   const [updated] = await db.update(digitalVaultDocsTable)
     .set({ lastVerifiedAt: new Date() })
-    .where(eq(digitalVaultDocsTable.id, id))
+    .where(and(eq(digitalVaultDocsTable.id, id), eq(digitalVaultDocsTable.ownerId, req.user!.id)))
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Vault document not found" });
@@ -212,7 +215,13 @@ router.delete("/vault/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  await db.delete(digitalVaultDocsTable).where(eq(digitalVaultDocsTable.id, id));
+  const [deleted] = await db.delete(digitalVaultDocsTable)
+    .where(and(eq(digitalVaultDocsTable.id, id), eq(digitalVaultDocsTable.ownerId, req.user!.id)))
+    .returning({ id: digitalVaultDocsTable.id });
+  if (!deleted) {
+    res.status(404).json({ error: "Vault document not found" });
+    return;
+  }
   res.status(204).send();
 });
 

@@ -1,16 +1,16 @@
 import { Router } from "express";
 import { db, profileTable, debtsTable, expensesTable, incomesTable, projectEntriesTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 
 const fmtSom = (val: number) =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(val)) + " сом";
 
-async function ensureProfile() {
-  const profiles = await db.select().from(profileTable).limit(1);
+async function ensureProfile(ownerId: string) {
+  const profiles = await db.select().from(profileTable).where(eq(profileTable.ownerId, ownerId));
   if (profiles.length === 0) {
-    const [profile] = await db.insert(profileTable).values({ currentSavings: 0, crisisMode: false }).returning();
+    const [profile] = await db.insert(profileTable).values({ ownerId, currentSavings: 0, crisisMode: false }).returning();
     return profile;
   }
   return profiles[0];
@@ -18,13 +18,13 @@ async function ensureProfile() {
 
 // GET /profile
 router.get("/profile", async (req, res) => {
-  const profile = await ensureProfile();
+  const profile = await ensureProfile(req.user!.id);
   res.json(profile);
 });
 
 // PATCH /profile
 router.patch("/profile", async (req, res) => {
-  const profile = await ensureProfile();
+  const profile = await ensureProfile(req.user!.id);
   const updates: Partial<{ currentSavings: number; crisisMode: boolean }> = {};
   if (req.body.currentSavings !== undefined) updates.currentSavings = Number(req.body.currentSavings);
   if (req.body.crisisMode !== undefined) updates.crisisMode = Boolean(req.body.crisisMode);
@@ -38,11 +38,11 @@ router.patch("/profile", async (req, res) => {
 // GET /dashboard/summary
 router.get("/dashboard/summary", async (req, res) => {
   const [profile, debts, expenses, incomes, projectEntries] = await Promise.all([
-    ensureProfile(),
-    db.select().from(debtsTable),
-    db.select().from(expensesTable),
-    db.select().from(incomesTable),
-    db.select().from(projectEntriesTable).orderBy(projectEntriesTable.month),
+    ensureProfile(req.user!.id),
+    db.select().from(debtsTable).where(eq(debtsTable.ownerId, req.user!.id)),
+    db.select().from(expensesTable).where(eq(expensesTable.ownerId, req.user!.id)),
+    db.select().from(incomesTable).where(eq(incomesTable.ownerId, req.user!.id)),
+    db.select().from(projectEntriesTable).where(eq(projectEntriesTable.ownerId, req.user!.id)).orderBy(projectEntriesTable.month),
   ]);
 
   const totalDebt = debts.reduce((s, d) => s + d.totalDebt, 0);
@@ -115,10 +115,10 @@ router.get("/dashboard/summary", async (req, res) => {
 // GET /crisis/simulation
 router.get("/crisis/simulation", async (req, res) => {
   const [profile, expenses, debts, incomes] = await Promise.all([
-    ensureProfile(),
-    db.select().from(expensesTable),
-    db.select().from(debtsTable),
-    db.select().from(incomesTable),
+    ensureProfile(req.user!.id),
+    db.select().from(expensesTable).where(eq(expensesTable.ownerId, req.user!.id)),
+    db.select().from(debtsTable).where(eq(debtsTable.ownerId, req.user!.id)),
+    db.select().from(incomesTable).where(eq(incomesTable.ownerId, req.user!.id)),
   ]);
 
   const essentialExpenses = expenses.filter(e => e.isEssential);

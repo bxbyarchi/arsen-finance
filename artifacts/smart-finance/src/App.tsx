@@ -18,6 +18,7 @@ import Goals from '@/pages/Goals';
 import Behavioral from '@/pages/Behavioral';
 import Autonomy from '@/pages/Autonomy';
 import Hypotheses from '@/pages/Hypotheses';
+import { AuthGate } from '@/components/auth/AuthGate';
 
 const queryClient = new QueryClient();
 
@@ -48,9 +49,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <Router />
-        </WouterRouter>
+        <AuthGate>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+            <Router />
+          </WouterRouter>
+        </AuthGate>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

@@ -6,7 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface PurchaseCheckInput {
-  /** Natural language purchase request */
-  query: string;
-}
+export type BeginBrowserLoginParams = {
+returnTo?: string;
+};
