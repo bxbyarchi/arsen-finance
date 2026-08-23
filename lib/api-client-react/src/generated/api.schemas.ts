@@ -17,6 +17,15 @@ export interface TelegramWebhookResult {
   reason?: string;
 }
 
+export type TelegramApiResponseResult = { [key: string]: unknown };
+
+export interface TelegramApiResponse {
+  ok: boolean;
+  result?: TelegramApiResponseResult;
+  description?: string;
+  [key: string]: unknown;
+ }
+
 export type TelegramUpdateInputMessageChat = {
   id?: number;
 };
@@ -901,5 +910,12 @@ returnTo?: string;
 
 export type LogoutBrowserSessionParams = {
 returnTo?: string;
+};
+
+export type ForceTelegramWebhookParams = {
+/**
+ * Public HTTPS app URL. If omitted, REPLIT_APP_URL or the request host is used.
+ */
+url?: string;
 };
 

@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { runAdvisorChat } from "./advisor";
 
 const router = Router();
@@ -45,6 +45,30 @@ async function telegramApi<T>(method: string, body: Record<string, unknown>) {
     throw new Error(payload.description ?? `Telegram API returned ${response.status}`);
   }
   return payload.result;
+}
+
+async function telegramApiGet<T>(method: string, query: Record<string, string>) {
+  const token = botToken();
+  if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+  const url = new URL(`https://api.telegram.org/bot${token}/${method}`);
+  Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, value));
+  const response = await fetch(url, {
+    method: "GET",
+    signal: AbortSignal.timeout(TELEGRAM_API_TIMEOUT_MS),
+  });
+  const payload = await response.json() as T;
+  return { status: response.status, payload };
+}
+
+function webhookUrlForRequest(req: Request) {
+  const queryUrl = typeof req.query.url === "string" ? req.query.url.trim() : "";
+  const configuredUrl = process.env.REPLIT_APP_URL?.trim() ?? "";
+  const requestHost = req.get("host")?.trim() ?? "";
+  const baseUrl = (queryUrl || configuredUrl || `https://${requestHost}`).replace(/\/+$/, "");
+  if (!baseUrl || !/^https:\/\//i.test(baseUrl)) {
+    throw new Error("Webhook URL must start with https://. Pass ?url=https://your-public-app.example");
+  }
+  return `${baseUrl}/api/telegram/webhook`;
 }
 
 export async function registerTelegramWebhook() {
@@ -109,11 +133,53 @@ async function replyToChat(chatId: number | string, text: string) {
   });
 }
 
-function validSetupRequest(req: Parameters<NonNullable<Parameters<typeof router.post>[1]>>[0]) {
+function validSetupRequest(req: Request) {
   const configuredSecret = process.env.TELEGRAM_SETUP_SECRET?.trim()
     || process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
   return req.isAuthenticated() || Boolean(configuredSecret && req.header("x-telegram-setup-secret") === configuredSecret);
 }
+
+// GET /telegram/set-webhook — manually force Telegram to use the public webhook URL.
+router.get("/telegram/set-webhook", async (req, res): Promise<void> => {
+  if (!validSetupRequest(req)) {
+    res.status(401).json({ error: "Authentication or Telegram setup secret required" });
+    return;
+  }
+  try {
+    const webhookUrl = webhookUrlForRequest(req);
+    const result = await telegramApiGet<TelegramApiResponse<{ url: string }>>("setWebhook", {
+      url: webhookUrl,
+      ...(process.env.TELEGRAM_WEBHOOK_SECRET?.trim()
+        ? { secret_token: process.env.TELEGRAM_WEBHOOK_SECRET.trim() }
+        : {}),
+    });
+    res.status(result.status).json(result.payload);
+  } catch (error) {
+    console.error("[telegram] manual webhook setup failed:", error instanceof Error ? error.message : error);
+    res.status(502).json({
+      ok: false,
+      description: error instanceof Error ? error.message : "Telegram webhook setup failed",
+    });
+  }
+});
+
+// GET /telegram/status — return Telegram's current webhook configuration.
+router.get("/telegram/status", async (req, res): Promise<void> => {
+  if (!validSetupRequest(req)) {
+    res.status(401).json({ error: "Authentication or Telegram setup secret required" });
+    return;
+  }
+  try {
+    const result = await telegramApiGet<TelegramApiResponse<unknown>>("getWebhookInfo", {});
+    res.status(result.status).json(result.payload);
+  } catch (error) {
+    console.error("[telegram] webhook status check failed:", error instanceof Error ? error.message : error);
+    res.status(502).json({
+      ok: false,
+      description: error instanceof Error ? error.message : "Telegram webhook status unavailable",
+    });
+  }
+});
 
 // POST /telegram/setup-webhook — authenticated admin retry after publishing.
 router.post("/telegram/setup-webhook", async (req, res) => {
@@ -133,26 +199,10 @@ router.post("/telegram/setup-webhook", async (req, res) => {
   res.json(result);
 });
 
-// POST /telegram/webhook — Telegram calls this endpoint with each update.
-router.post("/telegram/webhook", async (req, res) => {
-  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
-  if (expectedSecret && req.header("x-telegram-bot-api-secret-token") !== expectedSecret) {
-    console.warn("[telegram] rejected webhook with invalid secret header");
-    res.status(401).json({ error: "Invalid Telegram webhook secret" });
-    return;
-  }
-
-  const update = req.body as TelegramUpdate;
-  console.log("[telegram] incoming update:", JSON.stringify({
-    updateId: update?.update_id,
-    chatId: update?.message?.chat?.id,
-    text: typeof update?.message?.text === "string" ? update.message.text : undefined,
-  }));
-
+async function processTelegramUpdate(update: TelegramUpdate) {
   const chatId = update?.message?.chat?.id;
   const text = typeof update?.message?.text === "string" ? update.message.text.trim() : "";
   if (chatId === undefined || !text) {
-    res.json({ ok: true, handled: false, reason: "no_text_message" });
     return;
   }
 
@@ -169,25 +219,31 @@ router.post("/telegram/webhook", async (req, res) => {
       if (!ownerId) {
         reply = "Чтобы дать персональный совет, сначала свяжите этот Telegram-чат с аккаунтом Arsen Finance.";
       } else {
-        try {
-          const advice = await runAdvisorChat(text, [], ownerId);
-          reply = advice.responseText;
-        } catch (error) {
-          console.error("[telegram] advisor routing failed:", error instanceof Error ? error.message : error);
-          reply = "Не удалось рассчитать совет сейчас. Попробуйте ещё раз через минуту.";
-        }
+        const advice = await runAdvisorChat(text, [], ownerId);
+        reply = advice.responseText;
       }
     }
   }
 
-  try {
-    await replyToChat(chatId, reply);
-    console.log(`[telegram] reply sent to chat ${chatId}`);
-    res.json({ ok: true, handled: true });
-  } catch (error) {
-    console.error("[telegram] sendMessage failed:", error instanceof Error ? error.message : error);
-    res.status(502).json({ error: "Telegram reply could not be sent" });
+  await replyToChat(chatId, reply);
+  console.log(`[telegram] reply sent to chat ${chatId}`);
+}
+
+// POST /telegram/webhook — Telegram calls this endpoint with each update.
+router.post("/telegram/webhook", (req, res): void => {
+  console.log("INCOMING TELEGRAM UPDATE:", JSON.stringify(req.body));
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  if (expectedSecret && req.header("x-telegram-bot-api-secret-token") !== expectedSecret) {
+    console.warn("[telegram] rejected webhook with invalid secret header");
+    res.status(401).json({ error: "Invalid Telegram webhook secret" });
+    return;
   }
+
+  const update = req.body as TelegramUpdate;
+  res.status(200).json({ ok: true, accepted: true });
+  void processTelegramUpdate(update).catch((error) => {
+    console.error("[telegram] webhook processing failed:", error instanceof Error ? error.message : error);
+  });
 });
 
 export default router;

@@ -1,1 +1,2 @@
 - [Gemini model availability](gemini-model-availability.md) — The project credential requires Gemini 3.6 Flash for new purchase-advisor calls.
+- [OpenAPI URL parameters](openapi-url-parameters.md) — Zod 3 codegen cannot consume OpenAPI `format: uri`; validate HTTPS URLs at the API boundary instead.

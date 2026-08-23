@@ -57,6 +57,30 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Force Telegram to register the public webhook URL
+ */
+export const ForceTelegramWebhookQueryParams = zod.object({
+  "url": zod.coerce.string().optional().describe('Public HTTPS app URL. If omitted, REPLIT_APP_URL or the request host is used.')
+})
+
+export const ForceTelegramWebhookResponse = zod.object({
+  "ok": zod.boolean(),
+  "result": zod.record(zod.string(), zod.unknown()).optional(),
+  "description": zod.string().optional()
+})
+
+
+/**
+ * @summary Get Telegram webhook configuration
+ */
+export const GetTelegramWebhookStatusResponse = zod.object({
+  "ok": zod.boolean(),
+  "result": zod.record(zod.string(), zod.unknown()).optional(),
+  "description": zod.string().optional()
+})
+
+
+/**
  * @summary Register the Telegram webhook against the published HTTPS app
  */
 export const SetupTelegramWebhookResponse = zod.object({

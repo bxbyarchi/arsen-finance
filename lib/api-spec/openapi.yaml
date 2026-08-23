@@ -104,6 +104,47 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 
   # ─── Telegram ─────────────────────────────────────────────────
+  /telegram/set-webhook:
+    get:
+      operationId: forceTelegramWebhook
+      tags: [telegram]
+      summary: Force Telegram to register the public webhook URL
+      parameters:
+        - name: url
+          in: query
+          required: false
+          description: Public HTTPS app URL. If omitted, REPLIT_APP_URL or the request host is used.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Direct response from the Telegram Bot API
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramApiResponse"
+        "401":
+          description: Authenticated admin session or setup secret required
+        "502":
+          description: Telegram API unavailable or invalid webhook URL
+
+  /telegram/status:
+    get:
+      operationId: getTelegramWebhookStatus
+      tags: [telegram]
+      summary: Get Telegram webhook configuration
+      responses:
+        "200":
+          description: Direct response from the Telegram Bot API
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramApiResponse"
+        "401":
+          description: Authenticated admin session or setup secret required
+        "502":
+          description: Telegram API unavailable
+
   /telegram/setup-webhook:
     post:
       operationId: setupTelegramWebhook
@@ -1131,6 +1172,19 @@ components:
           type: boolean
         reason:
           type: string
+
+    TelegramApiResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        result:
+          type: object
+          additionalProperties: true
+        description:
+          type: string
+      additionalProperties: true
 
     TelegramUpdateInput:
       type: object
