@@ -440,6 +440,43 @@ export const AnalyzeFinancesResponse = zod.object({
 
 
 /**
+ * @summary Check whether a planned purchase is safe
+ */
+export const CheckPurchaseSafetyBody = zod.object({
+  "query": zod.string().describe('Natural language purchase request'),
+  "user_id": zod.number().describe('Current user or Telegram sender ID')
+})
+
+export const CheckPurchaseSafetyResponse = zod.object({
+  "verdict": zod.enum(['YES', 'NO', 'PARTIAL']),
+  "partialAmount": zod.number().nullish(),
+  "reasoning": zod.string(),
+  "action": zod.string(),
+  "responseText": zod.string().describe('Formatted answer under 80 words for API and Telegram'),
+  "context": zod.object({
+  "requestedAmount": zod.number(),
+  "requestedCategory": zod.string(),
+  "categoryLabel": zod.string(),
+  "liquidity": zod.number(),
+  "upcomingObligations": zod.number(),
+  "fixedBills": zod.number(),
+  "debtObligations": zod.number(),
+  "categoryActual": zod.number().describe('Recorded spending in the category during the current month'),
+  "categoryBudget": zod.number().describe('Current monthly budget baseline from expense records'),
+  "plannedIncome": zod.number(),
+  "plannedIncomeEntries": zod.array(zod.object({
+  "source": zod.string(),
+  "amount": zod.number(),
+  "month": zod.string()
+})),
+  "safeToSpendNow": zod.number(),
+  "earliestIncomeMonth": zod.string().nullish()
+}),
+  "isFallback": zod.boolean()
+})
+
+
+/**
  * @summary Get aggregate P&L summary across all projects
  */
 export const GetProjectsSummaryResponse = zod.object({

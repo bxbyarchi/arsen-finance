@@ -11,6 +11,8 @@ import goalsRouter from "./goals";
 import behavioralRouter from "./behavioral";
 import financialResilienceRouter from "./financial-resilience";
 import hypothesesRouter from "./hypotheses";
+import advisorRouter from "./advisor";
+import telegramRouter from "./telegram";
 
 const router: IRouter = Router();
 
@@ -26,5 +28,7 @@ router.use(goalsRouter);
 router.use(behavioralRouter);
 router.use(financialResilienceRouter);
 router.use(hypothesesRouter);
+router.use(advisorRouter);
+router.use(telegramRouter);
 
 export default router;

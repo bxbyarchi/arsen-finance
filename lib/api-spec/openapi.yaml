@@ -24,6 +24,8 @@ tags:
     description: Crisis simulation and runway analysis
   - name: ai
     description: AI financial advisor
+  - name: advisor
+    description: Purchase safety advisor
   - name: projects
     description: Multi-project P&L accounting
   - name: davlatov
@@ -400,6 +402,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AIAnalysisResult"
+
+  # ─── Purchase advisor ────────────────────────────────────────
+  /advisor/purchase-check:
+    post:
+      operationId: checkPurchaseSafety
+      tags: [advisor]
+      summary: Check whether a planned purchase is safe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseCheckInput"
+      responses:
+        "200":
+          description: Purchase safety verdict and financial context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseCheckResult"
 
   # ─── Projects ────────────────────────────────────────────────
   /projects/summary:
@@ -1779,3 +1801,82 @@ components:
           type: string
         keyLessons:
           type: string
+
+    # ─── Purchase advisor ─────────────────────────────────────
+    PurchaseCheckInput:
+      type: object
+      required: [query, user_id]
+      properties:
+        query:
+          type: string
+          description: Natural language purchase request
+        user_id:
+          type: number
+          description: Current user or Telegram sender ID
+
+    PlannedIncome:
+      type: object
+      required: [source, amount, month]
+      properties:
+        source:
+          type: string
+        amount:
+          type: number
+        month:
+          type: string
+
+    PurchaseContext:
+      type: object
+      required: [requestedAmount, requestedCategory, categoryLabel, liquidity, upcomingObligations, fixedBills, debtObligations, categoryActual, categoryBudget, plannedIncome, plannedIncomeEntries, safeToSpendNow]
+      properties:
+        requestedAmount:
+          type: number
+        requestedCategory:
+          type: string
+        categoryLabel:
+          type: string
+        liquidity:
+          type: number
+        upcomingObligations:
+          type: number
+        fixedBills:
+          type: number
+        debtObligations:
+          type: number
+        categoryActual:
+          type: number
+          description: Recorded spending in the category during the current month
+        categoryBudget:
+          type: number
+          description: Current monthly budget baseline from expense records
+        plannedIncome:
+          type: number
+        plannedIncomeEntries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannedIncome"
+        safeToSpendNow:
+          type: number
+        earliestIncomeMonth:
+          type: ["string", "null"]
+
+    PurchaseCheckResult:
+      type: object
+      required: [verdict, reasoning, action, responseText, context, isFallback]
+      properties:
+        verdict:
+          type: string
+          enum: [YES, NO, PARTIAL]
+        partialAmount:
+          type: ["number", "null"]
+        reasoning:
+          type: string
+        action:
+          type: string
+        responseText:
+          type: string
+          description: Formatted answer under 80 words for API and Telegram
+        context:
+          $ref: "#/components/schemas/PurchaseContext"
+        isFallback:
+          type: boolean

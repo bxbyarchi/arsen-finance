@@ -638,3 +638,56 @@ export interface HypothesisReflectionInput {
   keyLessons?: string;
 }
 
+export interface PurchaseCheckInput {
+  /** Natural language purchase request */
+  query: string;
+  /** Current user or Telegram sender ID */
+  user_id: number;
+}
+
+export interface PlannedIncome {
+  source: string;
+  amount: number;
+  month: string;
+}
+
+export interface PurchaseContext {
+  requestedAmount: number;
+  requestedCategory: string;
+  categoryLabel: string;
+  liquidity: number;
+  upcomingObligations: number;
+  fixedBills: number;
+  debtObligations: number;
+  /** Recorded spending in the category during the current month */
+  categoryActual: number;
+  /** Current monthly budget baseline from expense records */
+  categoryBudget: number;
+  plannedIncome: number;
+  plannedIncomeEntries: PlannedIncome[];
+  safeToSpendNow: number;
+  /** @nullable */
+  earliestIncomeMonth?: string | null;
+}
+
+export type PurchaseCheckResultVerdict = typeof PurchaseCheckResultVerdict[keyof typeof PurchaseCheckResultVerdict];
+
+
+export const PurchaseCheckResultVerdict = {
+  YES: 'YES',
+  NO: 'NO',
+  PARTIAL: 'PARTIAL',
+} as const;
+
+export interface PurchaseCheckResult {
+  verdict: PurchaseCheckResultVerdict;
+  /** @nullable */
+  partialAmount?: number | null;
+  reasoning: string;
+  action: string;
+  /** Formatted answer under 80 words for API and Telegram */
+  responseText: string;
+  context: PurchaseContext;
+  isFallback: boolean;
+}
+

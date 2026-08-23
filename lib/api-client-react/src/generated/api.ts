@@ -49,6 +49,8 @@ import type {
   ProjectInput,
   ProjectionSummary,
   ProjectsSummary,
+  PurchaseCheckInput,
+  PurchaseCheckResult,
   SavingsGoal,
   SavingsGoalInput,
   TransactionClassificationInput,
@@ -1715,6 +1717,77 @@ export const useAnalyzeFinances = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAnalyzeFinancesMutationOptions(options));
+    }
+
+export const getCheckPurchaseSafetyUrl = () => {
+
+
+
+
+  return `/api/advisor/purchase-check`
+}
+
+/**
+ * @summary Check whether a planned purchase is safe
+ */
+export const checkPurchaseSafety = async (purchaseCheckInput: PurchaseCheckInput, options?: Parameters<typeof customFetch>[1]): Promise<PurchaseCheckResult> => {
+
+  return customFetch<PurchaseCheckResult>(getCheckPurchaseSafetyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(purchaseCheckInput)
+  }
+);}
+
+
+
+
+
+export const getCheckPurchaseSafetyMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPurchaseSafety>>, TError,{data: BodyType<PurchaseCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkPurchaseSafety>>, TError,{data: BodyType<PurchaseCheckInput>}, TContext> => {
+
+const mutationKey = ['checkPurchaseSafety'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkPurchaseSafety>>, {data: BodyType<PurchaseCheckInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  checkPurchaseSafety(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckPurchaseSafetyMutationResult = NonNullable<Awaited<ReturnType<typeof checkPurchaseSafety>>>
+    export type CheckPurchaseSafetyMutationBody = BodyType<PurchaseCheckInput>
+    export type CheckPurchaseSafetyMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Check whether a planned purchase is safe
+ */
+export const useCheckPurchaseSafety = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPurchaseSafety>>, TError,{data: BodyType<PurchaseCheckInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkPurchaseSafety>>,
+        TError,
+        {data: BodyType<PurchaseCheckInput>},
+        TContext
+      > => {
+      return useMutation(getCheckPurchaseSafetyMutationOptions(options));
     }
 
 export const getGetProjectsSummaryUrl = () => {
