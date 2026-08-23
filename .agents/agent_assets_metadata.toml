@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "426gj4zCBVZDlLn6DMjGw"
+uri = "file://project.zip"
+type = "unspecified"
+title = "Smart Finance — полный архив проекта"
+description = "Проверенный переносимый ZIP: 341 файл, 418 477 байт. Включает исходники, три артефакта, shared-библиотеки, scripts, attached_assets и workspace-конфигурацию; исключает зависимости, кэши, сборочные файлы, локальные метаданные и секреты."
