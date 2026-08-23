@@ -2,7 +2,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { db, telegramLinkTokensTable, usersTable } from "@workspace/db";
 
-const LINK_TOKEN_TTL_MS = 10 * 60 * 1000;
+const LINK_TOKEN_TTL_MS = 15 * 60 * 1000;
+const LINK_TOKEN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 type LinkResult =
   | { status: "linked"; ownerId: string }
@@ -10,15 +11,20 @@ type LinkResult =
   | { status: "chat_already_linked" };
 
 function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
+  return createHash("sha256").update(token.trim().toUpperCase()).digest("hex");
 }
 
 function isLinkToken(value: string) {
-  return /^[A-Za-z0-9_-]{32,64}$/.test(value);
+  return /^[A-HJ-NP-Z2-9]{6}$/i.test(value.trim());
+}
+
+function generateLinkToken() {
+  const bytes = randomBytes(6);
+  return Array.from(bytes, (byte) => LINK_TOKEN_ALPHABET[byte & 31]).join("");
 }
 
 export async function createTelegramLinkToken(ownerId: string) {
-  const token = randomBytes(32).toString("base64url");
+  const token = generateLinkToken();
   const now = new Date();
   const expiresAt = new Date(Date.now() + LINK_TOKEN_TTL_MS);
   await db.update(telegramLinkTokensTable)

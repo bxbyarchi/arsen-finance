@@ -202,8 +202,8 @@ function parseAmount(text: string) {
 }
 
 function parseLinkToken(text: string) {
-  const match = text.match(/^\/(?:start|link)(?:@\w+)?(?:\s+([A-Za-z0-9_-]+))?\s*$/iu);
-  return match ? (match[1] ?? null) : undefined;
+  const match = text.trim().match(/^\/(?:start|link)(?:@\w+)?(?:\s+([A-Za-z0-9-]+))?\s*$/iu);
+  return match ? (match[1]?.trim().toUpperCase() ?? null) : undefined;
 }
 
 function parseTelegramExpense(text: string) {
@@ -240,6 +240,11 @@ function linkedHelpMessage() {
     "• Любой вопрос о деньгах — совет от ИИ",
   ].join("\n");
 }
+
+const LINK_SUCCESS_REPLY = "✅ Аккаунт успешно привязан! Теперь вы можете записывать расходы и запрашивать финансовые аналитики прямо здесь.";
+const LINK_INVALID_REPLY = "❌ Неверный или истекший код привязки. Сгенерируйте новый код в Настройках веб-приложения.";
+const LINK_FAILURE_REPLY = "⚠️ Не удалось привязать аккаунт из-за временной ошибки. Попробуйте сгенерировать новый код в Настройках веб-приложения.";
+const TELEGRAM_FAILURE_REPLY = "⚠️ Не удалось обработать сообщение из-за временной ошибки. Попробуйте ещё раз.";
 
 async function replyToChat(chatId: number | string, text: string) {
   return telegramApi("sendMessage", {
@@ -379,7 +384,7 @@ async function financialStatusMessage(ownerId: string) {
   ].join("\n");
 }
 
-async function processTelegramUpdate(update: TelegramUpdate, updateId: number) {
+async function processTelegramUpdateInner(update: TelegramUpdate, updateId: number) {
   const chatId = update?.message?.chat?.id;
   const text = typeof update?.message?.text === "string" ? update.message.text.trim() : "";
   if (chatId === undefined || !text) {
@@ -394,16 +399,15 @@ async function processTelegramUpdate(update: TelegramUpdate, updateId: number) {
   const linkToken = parseLinkToken(text);
   if (linkToken !== undefined) {
     if (!linkToken) {
-      const ownerId = await ownerIdForTelegramChat(chatIdValue);
-      await replyToChat(chatId, ownerId ? linkedHelpMessage() : unlinkedMessage());
+      await replyToChat(chatId, LINK_INVALID_REPLY);
       return;
     }
     const result = await linkTelegramChat(linkToken, chatIdValue);
     const reply = result.status === "linked"
-      ? "Готово — Telegram подключён к вашему Arsen Finance. Отправьте /status, /expense 450 еда продукты или задайте финансовый вопрос."
+      ? LINK_SUCCESS_REPLY
       : result.status === "chat_already_linked"
         ? "Этот Telegram-чат уже связан с другим аккаунтом. Сначала отключите его в настройках того аккаунта."
-        : "Код недействителен, уже использован или истёк. Создайте новый код в настройках Arsen Finance.";
+        : LINK_INVALID_REPLY;
     await replyToChat(chatId, reply);
     return;
   }
@@ -442,6 +446,25 @@ async function processTelegramUpdate(update: TelegramUpdate, updateId: number) {
   }
   await replyToChat(chatId, reply);
   console.log(`[telegram] reply sent to chat ${chatId}`);
+}
+
+async function processTelegramUpdate(update: TelegramUpdate, updateId: number) {
+  const chatId = update?.message?.chat?.id;
+  const text = typeof update?.message?.text === "string" ? update.message.text.trim() : "";
+  try {
+    await processTelegramUpdateInner(update, updateId);
+  } catch (error) {
+    const isLinkingFailure = parseLinkToken(text) !== undefined;
+    logger.error({ err: error, updateId }, "[telegram] update processing failed");
+    if (chatId !== undefined) {
+      try {
+        await replyToChat(chatId, isLinkingFailure ? LINK_FAILURE_REPLY : TELEGRAM_FAILURE_REPLY);
+      } catch (replyError) {
+        logger.error({ err: replyError, updateId }, "[telegram] failed to send processing error reply");
+      }
+    }
+    throw error;
+  }
 }
 
 async function processQueuedTelegramUpdate(updateId: number) {
