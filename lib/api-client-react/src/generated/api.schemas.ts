@@ -5,6 +5,35 @@
  * Smart Finance & Crisis Manager API
  * OpenAPI spec version: 0.1.0
  */
+export interface TelegramSetupResult {
+  registered: boolean;
+  url?: string;
+  pendingUpdateCount?: number;
+}
+
+export interface TelegramWebhookResult {
+  ok: boolean;
+  handled: boolean;
+  reason?: string;
+}
+
+export type TelegramUpdateInputMessageChat = {
+  id?: number;
+};
+
+export type TelegramUpdateInputMessage = {
+  chat?: TelegramUpdateInputMessageChat;
+  text?: string;
+};
+
+/**
+ * Telegram Update payload
+ */
+export interface TelegramUpdateInput {
+  update_id?: number;
+  message?: TelegramUpdateInputMessage;
+}
+
 export interface AuthUser {
   id: string;
   /** @nullable */

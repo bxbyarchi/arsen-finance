@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { registerTelegramWebhook } from "./routes/telegram";
 
 const rawPort = process.env.PORT ?? process.env.API_PORT ?? "8080";
 
@@ -16,4 +17,5 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  void registerTelegramWebhook();
 });

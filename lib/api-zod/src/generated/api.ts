@@ -57,6 +57,36 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Register the Telegram webhook against the published HTTPS app
+ */
+export const SetupTelegramWebhookResponse = zod.object({
+  "registered": zod.boolean(),
+  "url": zod.string().optional(),
+  "pendingUpdateCount": zod.number().optional()
+})
+
+
+/**
+ * @summary Receive a Telegram update and send a reply
+ */
+export const ReceiveTelegramWebhookBody = zod.object({
+  "update_id": zod.number().optional(),
+  "message": zod.object({
+  "chat": zod.object({
+  "id": zod.number().optional()
+}).optional(),
+  "text": zod.string().optional()
+}).optional()
+}).describe('Telegram Update payload')
+
+export const ReceiveTelegramWebhookResponse = zod.object({
+  "ok": zod.boolean(),
+  "handled": zod.boolean(),
+  "reason": zod.string().optional()
+})
+
+
+/**
  * @summary List all debts
  */
 export const ListDebtsResponseItem = zod.object({

@@ -58,6 +58,9 @@ import type {
   PurchaseCheckResult,
   SavingsGoal,
   SavingsGoalInput,
+  TelegramSetupResult,
+  TelegramUpdateInput,
+  TelegramWebhookResult,
   TransactionClassificationInput,
   TransactionClassificationResult,
   VaultDocument,
@@ -491,6 +494,148 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
+export const getSetupTelegramWebhookUrl = () => {
+
+
+
+
+  return `/api/telegram/setup-webhook`
+}
+
+/**
+ * @summary Register the Telegram webhook against the published HTTPS app
+ */
+export const setupTelegramWebhook = async ( options?: Parameters<typeof customFetch>[1]): Promise<TelegramSetupResult> => {
+
+  return customFetch<TelegramSetupResult>(getSetupTelegramWebhookUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSetupTelegramWebhookMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupTelegramWebhook>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setupTelegramWebhook>>, TError,void, TContext> => {
+
+const mutationKey = ['setupTelegramWebhook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setupTelegramWebhook>>, void> = () => {
+
+
+          return  setupTelegramWebhook(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetupTelegramWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof setupTelegramWebhook>>>
+
+    export type SetupTelegramWebhookMutationError = ErrorType<void>
+
+    /**
+ * @summary Register the Telegram webhook against the published HTTPS app
+ */
+export const useSetupTelegramWebhook = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupTelegramWebhook>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setupTelegramWebhook>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSetupTelegramWebhookMutationOptions(options));
+    }
+
+export const getReceiveTelegramWebhookUrl = () => {
+
+
+
+
+  return `/api/telegram/webhook`
+}
+
+/**
+ * @summary Receive a Telegram update and send a reply
+ */
+export const receiveTelegramWebhook = async (telegramUpdateInput: TelegramUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<TelegramWebhookResult> => {
+
+  return customFetch<TelegramWebhookResult>(getReceiveTelegramWebhookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(telegramUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getReceiveTelegramWebhookMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveTelegramWebhook>>, TError,{data: BodyType<TelegramUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof receiveTelegramWebhook>>, TError,{data: BodyType<TelegramUpdateInput>}, TContext> => {
+
+const mutationKey = ['receiveTelegramWebhook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receiveTelegramWebhook>>, {data: BodyType<TelegramUpdateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  receiveTelegramWebhook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReceiveTelegramWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof receiveTelegramWebhook>>>
+    export type ReceiveTelegramWebhookMutationBody = BodyType<TelegramUpdateInput>
+    export type ReceiveTelegramWebhookMutationError = ErrorType<void>
+
+    /**
+ * @summary Receive a Telegram update and send a reply
+ */
+export const useReceiveTelegramWebhook = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveTelegramWebhook>>, TError,{data: BodyType<TelegramUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof receiveTelegramWebhook>>,
+        TError,
+        {data: BodyType<TelegramUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getReceiveTelegramWebhookMutationOptions(options));
+    }
 
 export const getListDebtsUrl = () => {
 

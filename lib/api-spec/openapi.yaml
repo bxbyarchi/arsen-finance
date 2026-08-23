@@ -103,6 +103,47 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  # ─── Telegram ─────────────────────────────────────────────────
+  /telegram/setup-webhook:
+    post:
+      operationId: setupTelegramWebhook
+      tags: [telegram]
+      summary: Register the Telegram webhook against the published HTTPS app
+      responses:
+        "200":
+          description: Webhook registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramSetupResult"
+        "401":
+          description: Authenticated admin session or setup secret required
+        "503":
+          description: Bot token, published HTTPS URL, or Telegram API unavailable
+
+  /telegram/webhook:
+    post:
+      operationId: receiveTelegramWebhook
+      tags: [telegram]
+      summary: Receive a Telegram update and send a reply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramUpdateInput"
+      responses:
+        "200":
+          description: Update accepted and handled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramWebhookResult"
+        "401":
+          description: Invalid Telegram secret header
+        "502":
+          description: Telegram reply could not be sent
+
   # ─── Debts ───────────────────────────────────────────────────
   /debts:
     get:
@@ -1050,6 +1091,45 @@ paths:
 
 components:
   schemas:
+    TelegramSetupResult:
+      type: object
+      required: [registered]
+      properties:
+        registered:
+          type: boolean
+        url:
+          type: string
+        pendingUpdateCount:
+          type: number
+
+    TelegramWebhookResult:
+      type: object
+      required: [ok, handled]
+      properties:
+        ok:
+          type: boolean
+        handled:
+          type: boolean
+        reason:
+          type: string
+
+    TelegramUpdateInput:
+      type: object
+      description: Telegram Update payload
+      properties:
+        update_id:
+          type: number
+        message:
+          type: object
+          properties:
+            chat:
+              type: object
+              properties:
+                id:
+                  type: number
+            text:
+              type: string
+
     AuthUser:
       type: object
       required: [id, email, firstName, lastName, profileImageUrl]
