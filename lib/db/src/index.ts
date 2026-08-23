@@ -3,14 +3,18 @@ import pg from "pg";
 import * as schema from "./schema";
 
 const { Pool } = pg;
+const databaseUrl =
+  process.env.DATABASE_URL ??
+  process.env.POSTGRES_URL ??
+  process.env.POSTGRES_CONNECTION_STRING;
 
-if (!process.env.DATABASE_URL) {
+if (!databaseUrl) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "Set DATABASE_URL, POSTGRES_URL, or POSTGRES_CONNECTION_STRING before starting the API server.",
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const pool = new Pool({ connectionString: databaseUrl });
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";

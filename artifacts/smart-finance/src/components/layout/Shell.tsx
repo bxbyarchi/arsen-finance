@@ -53,8 +53,8 @@ function AppSidebar() {
     <Sidebar variant="inset">
       <SidebarHeader className="h-16 flex items-center px-4 border-b border-sidebar-border bg-sidebar">
         <div className="flex items-center gap-2 font-bold text-lg text-sidebar-foreground w-full">
-          <ShieldAlert className="h-6 w-6 text-primary" />
-          <span className="truncate">Финансовый контроль</span>
+          <Moon className="h-6 w-6 text-primary drop-shadow-[0_0_8px_hsl(var(--primary))]" />
+          <span className="truncate">LUNA CORE</span>
         </div>
       </SidebarHeader>
 
@@ -113,7 +113,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex flex-col flex-1 min-w-0 w-full">
           <header className="h-16 flex items-center gap-4 border-b bg-card px-6 sticky top-0 z-10 transition-colors duration-300">
             <SidebarTrigger />
-            <h1 className="text-lg font-semibold truncate flex-1 tracking-tight">Smart Finance & Crisis Manager</h1>
+            <h1 className="text-lg font-semibold truncate flex-1 tracking-tight">LUNA CORE | Financial &amp; Operations OS</h1>
             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "light" ? "dark" : "light")}
               className="text-muted-foreground hover:text-foreground">
               {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
