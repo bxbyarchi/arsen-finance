@@ -1,0 +1,1 @@
+- [Gemini model availability](gemini-model-availability.md) — The project credential requires Gemini 3.6 Flash for new purchase-advisor calls.
