@@ -40,6 +40,8 @@ import type {
   FinancialAutonomyProfileUpdate,
   FinancialProfile,
   HealthStatus,
+  HypothesisEvaluationInput,
+  HypothesisEvaluationResult,
   HypothesisReflectionInput,
   Income,
   IncomeInput,
@@ -4095,6 +4097,77 @@ export const useCreateBusinessHypothesis = <TError = ErrorType<unknown>,
       return useMutation(getCreateBusinessHypothesisMutationOptions(options));
     }
 
+export const getEvaluateBusinessHypothesisUrl = () => {
+
+
+
+
+  return `/api/hypotheses/evaluate`
+}
+
+/**
+ * @summary Stress-test a business hypothesis with Graham and Barbell rules
+ */
+export const evaluateBusinessHypothesis = async (hypothesisEvaluationInput: HypothesisEvaluationInput, options?: Parameters<typeof customFetch>[1]): Promise<HypothesisEvaluationResult> => {
+
+  return customFetch<HypothesisEvaluationResult>(getEvaluateBusinessHypothesisUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(hypothesisEvaluationInput)
+  }
+);}
+
+
+
+
+
+export const getEvaluateBusinessHypothesisMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof evaluateBusinessHypothesis>>, TError,{data: BodyType<HypothesisEvaluationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof evaluateBusinessHypothesis>>, TError,{data: BodyType<HypothesisEvaluationInput>}, TContext> => {
+
+const mutationKey = ['evaluateBusinessHypothesis'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof evaluateBusinessHypothesis>>, {data: BodyType<HypothesisEvaluationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  evaluateBusinessHypothesis(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EvaluateBusinessHypothesisMutationResult = NonNullable<Awaited<ReturnType<typeof evaluateBusinessHypothesis>>>
+    export type EvaluateBusinessHypothesisMutationBody = BodyType<HypothesisEvaluationInput>
+    export type EvaluateBusinessHypothesisMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Stress-test a business hypothesis with Graham and Barbell rules
+ */
+export const useEvaluateBusinessHypothesis = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof evaluateBusinessHypothesis>>, TError,{data: BodyType<HypothesisEvaluationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof evaluateBusinessHypothesis>>,
+        TError,
+        {data: BodyType<HypothesisEvaluationInput>},
+        TContext
+      > => {
+      return useMutation(getEvaluateBusinessHypothesisMutationOptions(options));
+    }
+
 export const getUpdateBusinessHypothesisUrl = (id: number,) => {
 
 
@@ -4309,3 +4382,4 @@ export const useReflectOnBusinessHypothesis = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getReflectOnBusinessHypothesisMutationOptions(options));
     }
+

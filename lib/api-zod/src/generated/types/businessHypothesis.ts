@@ -5,6 +5,7 @@
  * Smart Finance & Crisis Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessHypothesisRiskRating } from './businessHypothesisRiskRating';
 import type { BusinessHypothesisStatus } from './businessHypothesisStatus';
 
 export interface BusinessHypothesis {
@@ -13,6 +14,20 @@ export interface BusinessHypothesis {
   status: BusinessHypothesisStatus;
   projectedBudget: number;
   actualRiskImpact: number;
+  expectedMonthlyRevenue: number;
+  expectedMonthlyCosts: number;
+  /** @nullable */
+  stressTestRevenue?: number | null;
+  /** @nullable */
+  stressTestCosts?: number | null;
+  /** @nullable */
+  conservativePaybackMonths?: number | null;
+  /** @nullable */
+  marginOfSafety?: number | null;
+  /** @nullable */
+  riskRating?: BusinessHypothesisRiskRating;
+  /** @nullable */
+  evaluatedAt?: string | null;
   /** @nullable */
   keyLessons?: string | null;
   createdAt: string;

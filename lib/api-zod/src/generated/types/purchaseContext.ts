@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PlannedIncome } from './plannedIncome';
+import type { PurchaseContextMarketDataStatus } from './purchaseContextMarketDataStatus';
 
 export interface PurchaseContext {
   requestedAmount: number;
@@ -24,4 +25,17 @@ export interface PurchaseContext {
   safeToSpendNow: number;
   /** @nullable */
   earliestIncomeMonth?: string | null;
+  safetyReserveTarget: number;
+  riskBandAvailable: number;
+  postPurchaseCoreReserve: number;
+  barbellSafetyViolation: boolean;
+  /** @nullable */
+  inflationRateAnnual: number | null;
+  /** @nullable */
+  inflationAdjustedCostOfWaiting: number | null;
+  waitingMonths: number;
+  marginOfSafety: number;
+  marketDataStatus: PurchaseContextMarketDataStatus;
+  /** @nullable */
+  marketDataFetchedAt: string | null;
 }

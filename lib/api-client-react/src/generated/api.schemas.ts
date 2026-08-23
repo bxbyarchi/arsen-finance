@@ -602,12 +602,39 @@ export const BusinessHypothesisStatus = {
   archived: 'archived',
 } as const;
 
+/**
+ * @nullable
+ */
+export type BusinessHypothesisRiskRating = typeof BusinessHypothesisRiskRating[keyof typeof BusinessHypothesisRiskRating] | null;
+
+
+export const BusinessHypothesisRiskRating = {
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
+  Barbell_Violation: 'Barbell Violation',
+} as const;
+
 export interface BusinessHypothesis {
   id: number;
   title: string;
   status: BusinessHypothesisStatus;
   projectedBudget: number;
   actualRiskImpact: number;
+  expectedMonthlyRevenue: number;
+  expectedMonthlyCosts: number;
+  /** @nullable */
+  stressTestRevenue?: number | null;
+  /** @nullable */
+  stressTestCosts?: number | null;
+  /** @nullable */
+  conservativePaybackMonths?: number | null;
+  /** @nullable */
+  marginOfSafety?: number | null;
+  /** @nullable */
+  riskRating?: BusinessHypothesisRiskRating;
+  /** @nullable */
+  evaluatedAt?: string | null;
   /** @nullable */
   keyLessons?: string | null;
   createdAt: string;
@@ -627,6 +654,8 @@ export interface BusinessHypothesisInput {
   status?: BusinessHypothesisInputStatus;
   projectedBudget?: number;
   actualRiskImpact?: number;
+  expectedMonthlyRevenue?: number;
+  expectedMonthlyCosts?: number;
   keyLessons?: string;
 }
 
@@ -644,6 +673,8 @@ export interface BusinessHypothesisUpdate {
   status?: BusinessHypothesisUpdateStatus;
   projectedBudget?: number;
   actualRiskImpact?: number;
+  expectedMonthlyRevenue?: number;
+  expectedMonthlyCosts?: number;
   keyLessons?: string;
 }
 
@@ -652,6 +683,45 @@ export interface HypothesisReflectionInput {
   failed?: string;
   adjust?: string;
   keyLessons?: string;
+}
+
+export interface HypothesisEvaluationInput {
+  /** Existing hypothesis to re-evaluate */
+  hypothesisId?: number;
+  /** Required when evaluating and saving a new hypothesis */
+  title?: string;
+  projectedBudget?: number;
+  expectedMonthlyRevenue?: number;
+  expectedMonthlyCosts?: number;
+}
+
+export type HypothesisEvaluationRiskRating = typeof HypothesisEvaluationRiskRating[keyof typeof HypothesisEvaluationRiskRating];
+
+
+export const HypothesisEvaluationRiskRating = {
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
+  Barbell_Violation: 'Barbell Violation',
+} as const;
+
+export interface HypothesisEvaluation {
+  projectedBudget: number;
+  expectedMonthlyRevenue: number;
+  expectedMonthlyCosts: number;
+  stressTestRevenue: number;
+  stressTestCosts: number;
+  /** @nullable */
+  conservativePaybackMonths: number | null;
+  marginOfSafety: number;
+  riskRating: HypothesisEvaluationRiskRating;
+  riskCapitalLimit: number;
+  isBarbellViolation: boolean;
+}
+
+export interface HypothesisEvaluationResult {
+  hypothesis: BusinessHypothesis;
+  evaluation: HypothesisEvaluation;
 }
 
 export interface PurchaseCheckInput {
@@ -664,6 +734,15 @@ export interface PlannedIncome {
   amount: number;
   month: string;
 }
+
+export type PurchaseContextMarketDataStatus = typeof PurchaseContextMarketDataStatus[keyof typeof PurchaseContextMarketDataStatus];
+
+
+export const PurchaseContextMarketDataStatus = {
+  live: 'live',
+  cache: 'cache',
+  unavailable: 'unavailable',
+} as const;
 
 export interface PurchaseContext {
   requestedAmount: number;
@@ -682,6 +761,19 @@ export interface PurchaseContext {
   safeToSpendNow: number;
   /** @nullable */
   earliestIncomeMonth?: string | null;
+  safetyReserveTarget: number;
+  riskBandAvailable: number;
+  postPurchaseCoreReserve: number;
+  barbellSafetyViolation: boolean;
+  /** @nullable */
+  inflationRateAnnual: number | null;
+  /** @nullable */
+  inflationAdjustedCostOfWaiting: number | null;
+  waitingMonths: number;
+  marginOfSafety: number;
+  marketDataStatus: PurchaseContextMarketDataStatus;
+  /** @nullable */
+  marketDataFetchedAt: string | null;
 }
 
 export type PurchaseCheckResultVerdict = typeof PurchaseCheckResultVerdict[keyof typeof PurchaseCheckResultVerdict];
@@ -698,6 +790,8 @@ export interface PurchaseCheckResult {
   /** @nullable */
   partialAmount?: number | null;
   reasoning: string;
+  barbellCheck: string;
+  inflationAssessment: string;
   action: string;
   /** Formatted answer under 80 words */
   responseText: string;
@@ -712,3 +806,4 @@ returnTo?: string;
 export type LogoutBrowserSessionParams = {
 returnTo?: string;
 };
+

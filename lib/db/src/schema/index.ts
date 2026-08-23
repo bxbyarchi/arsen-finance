@@ -10,3 +10,4 @@ export * from "./auth";
 export * from "./user-financial-profiles";
 export * from "./business-hypotheses";
 export * from "./digital-vault-docs";
+export * from "./market-data-cache";

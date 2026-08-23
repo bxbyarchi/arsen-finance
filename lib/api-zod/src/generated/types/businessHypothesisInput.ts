@@ -12,5 +12,7 @@ export interface BusinessHypothesisInput {
   status?: BusinessHypothesisInputStatus;
   projectedBudget?: number;
   actualRiskImpact?: number;
+  expectedMonthlyRevenue?: number;
+  expectedMonthlyCosts?: number;
   keyLessons?: string;
 }

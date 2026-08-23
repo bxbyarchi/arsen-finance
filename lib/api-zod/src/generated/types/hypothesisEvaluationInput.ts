@@ -5,14 +5,13 @@
  * Smart Finance & Crisis Manager API
  * OpenAPI spec version: 0.1.0
  */
-import type { BusinessHypothesisUpdateStatus } from './businessHypothesisUpdateStatus';
 
-export interface BusinessHypothesisUpdate {
+export interface HypothesisEvaluationInput {
+  /** Existing hypothesis to re-evaluate */
+  hypothesisId?: number;
+  /** Required when evaluating and saving a new hypothesis */
   title?: string;
-  status?: BusinessHypothesisUpdateStatus;
   projectedBudget?: number;
-  actualRiskImpact?: number;
   expectedMonthlyRevenue?: number;
   expectedMonthlyCosts?: number;
-  keyLessons?: string;
 }

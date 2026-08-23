@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, businessHypothesesTable } from "@workspace/db";
 import { and, desc, eq } from "drizzle-orm";
+import { evaluateHypothesis } from "../services/hypothesisEvaluation";
 
 const router = Router();
 const STATUSES = ["learning_zone", "performance_zone", "archived"] as const;
@@ -11,8 +12,27 @@ function isStatus(value: unknown): value is HypothesisStatus {
 }
 
 function amount(value: unknown): number | null {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+async function persistEvaluation(ownerId: string, hypothesis: typeof businessHypothesesTable.$inferSelect) {
+  const evaluation = await evaluateHypothesis(ownerId, {
+    projectedBudget: hypothesis.projectedBudget,
+    expectedMonthlyRevenue: hypothesis.expectedMonthlyRevenue,
+    expectedMonthlyCosts: hypothesis.expectedMonthlyCosts,
+  });
+  const [updated] = await db.update(businessHypothesesTable)
+    .set({
+      stressTestRevenue: evaluation.stressTestRevenue,
+      stressTestCosts: evaluation.stressTestCosts,
+      conservativePaybackMonths: evaluation.conservativePaybackMonths,
+      marginOfSafety: evaluation.marginOfSafety,
+      riskRating: evaluation.riskRating,
+      evaluatedAt: new Date(),
+    })
+    .where(and(eq(businessHypothesesTable.id, hypothesis.id), eq(businessHypothesesTable.ownerId, ownerId)))
+    .returning();
+  return { hypothesis: updated!, evaluation };
 }
 
 // GET /hypotheses
@@ -29,16 +49,19 @@ router.post("/hypotheses", async (req, res) => {
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const projectedBudget = amount(body.projectedBudget ?? 0);
   const actualRiskImpact = amount(body.actualRiskImpact ?? 0);
+  const expectedMonthlyRevenue = amount(body.expectedMonthlyRevenue ?? 0);
+  const expectedMonthlyCosts = amount(body.expectedMonthlyCosts ?? 0);
   const status = body.status === undefined ? "learning_zone" : body.status;
-  if (!title || projectedBudget === null || actualRiskImpact === null || !isStatus(status)) {
+  if (!title || projectedBudget === null || actualRiskImpact === null || expectedMonthlyRevenue === null || expectedMonthlyCosts === null || !isStatus(status)) {
     res.status(400).json({ error: "title, valid non-negative amounts, and a valid status are required" });
     return;
   }
   const [created] = await db.insert(businessHypothesesTable).values({
-    ownerId: req.user!.id, title, status, projectedBudget, actualRiskImpact,
+    ownerId: req.user!.id, title, status, projectedBudget, actualRiskImpact, expectedMonthlyRevenue, expectedMonthlyCosts,
     keyLessons: typeof body.keyLessons === "string" ? body.keyLessons.trim() || null : null,
   }).returning();
-  res.status(201).json(created);
+  const evaluated = await persistEvaluation(req.user!.id, created);
+  res.status(201).json(evaluated.hypothesis);
 });
 
 // PATCH /hypotheses/:id
@@ -64,7 +87,8 @@ router.patch("/hypotheses/:id", async (req, res) => {
     }
     updates.status = body.status;
   }
-  for (const field of ["projectedBudget", "actualRiskImpact"] as const) {
+  let needsReevaluation = false;
+  for (const field of ["projectedBudget", "actualRiskImpact", "expectedMonthlyRevenue", "expectedMonthlyCosts"] as const) {
     if (body[field] !== undefined) {
       const parsed = amount(body[field]);
       if (parsed === null) {
@@ -72,6 +96,7 @@ router.patch("/hypotheses/:id", async (req, res) => {
         return;
       }
       updates[field] = parsed;
+      if (field !== "actualRiskImpact") needsReevaluation = true;
     }
   }
   if (body.keyLessons !== undefined) {
@@ -85,7 +110,65 @@ router.patch("/hypotheses/:id", async (req, res) => {
     res.status(404).json({ error: "Hypothesis not found" });
     return;
   }
-  res.json(updated);
+  if (!needsReevaluation) {
+    res.json(updated);
+    return;
+  }
+  const evaluated = await persistEvaluation(req.user!.id, updated);
+  res.json(evaluated.hypothesis);
+});
+
+// POST /hypotheses/evaluate — Graham Margin of Safety + Taleb Barbell check
+router.post("/hypotheses/evaluate", async (req, res) => {
+  const body = req.body as Record<string, unknown>;
+  const hypothesisId = body.hypothesisId;
+  if (hypothesisId !== undefined) {
+    if (typeof hypothesisId !== "number" || !Number.isInteger(hypothesisId) || hypothesisId <= 0) {
+      res.status(400).json({ error: "hypothesisId must be a positive integer" });
+      return;
+    }
+    const [existing] = await db.select().from(businessHypothesesTable)
+      .where(and(eq(businessHypothesesTable.id, hypothesisId), eq(businessHypothesesTable.ownerId, req.user!.id)))
+      .limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Hypothesis not found" });
+      return;
+    }
+    const projectedBudget = body.projectedBudget === undefined ? existing.projectedBudget : amount(body.projectedBudget);
+    const expectedMonthlyRevenue = body.expectedMonthlyRevenue === undefined ? existing.expectedMonthlyRevenue : amount(body.expectedMonthlyRevenue);
+    const expectedMonthlyCosts = body.expectedMonthlyCosts === undefined ? existing.expectedMonthlyCosts : amount(body.expectedMonthlyCosts);
+    if (projectedBudget === null || expectedMonthlyRevenue === null || expectedMonthlyCosts === null) {
+      res.status(400).json({ error: "Financial assumptions must be non-negative finite numbers" });
+      return;
+    }
+    const [withInputs] = await db.update(businessHypothesesTable)
+      .set({ projectedBudget, expectedMonthlyRevenue, expectedMonthlyCosts })
+      .where(and(eq(businessHypothesesTable.id, hypothesisId), eq(businessHypothesesTable.ownerId, req.user!.id)))
+      .returning();
+    const evaluated = await persistEvaluation(req.user!.id, withInputs);
+    res.json(evaluated);
+    return;
+  }
+
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const projectedBudget = amount(body.projectedBudget);
+  const expectedMonthlyRevenue = amount(body.expectedMonthlyRevenue);
+  const expectedMonthlyCosts = amount(body.expectedMonthlyCosts);
+  if (!title || projectedBudget === null || expectedMonthlyRevenue === null || expectedMonthlyCosts === null) {
+    res.status(400).json({ error: "title, projectedBudget, expectedMonthlyRevenue, and expectedMonthlyCosts are required" });
+    return;
+  }
+  const [created] = await db.insert(businessHypothesesTable).values({
+    ownerId: req.user!.id,
+    title,
+    projectedBudget,
+    expectedMonthlyRevenue,
+    expectedMonthlyCosts,
+    actualRiskImpact: 0,
+    status: "learning_zone",
+  }).returning();
+  const evaluated = await persistEvaluation(req.user!.id, created);
+  res.status(201).json(evaluated);
 });
 
 // POST /hypotheses/:id/reflection — Beyoncé Loop

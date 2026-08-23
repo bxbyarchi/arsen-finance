@@ -13,6 +13,8 @@ export interface PurchaseCheckResult {
   /** @nullable */
   partialAmount?: number | null;
   reasoning: string;
+  barbellCheck: string;
+  inflationAssessment: string;
   action: string;
   /** Formatted answer under 80 words */
   responseText: string;

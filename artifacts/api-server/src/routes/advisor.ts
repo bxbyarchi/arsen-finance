@@ -2,9 +2,11 @@ import { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
 import { db, debtsTable, expensesTable, incomesTable, profileTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { getMarketContext, type MarketContext } from "../services/marketData";
 
 const router = Router();
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
+const GEMINI_WORDING_TIMEOUT_MS = 4_500;
 
 const CATEGORY_ALIASES: Record<string, string> = {
   housing: "housing", жилье: "housing", жильё: "housing", аренда: "housing",
@@ -33,12 +35,24 @@ interface PurchaseContext {
   plannedIncomeEntries: Array<{ source: string; amount: number; month: string }>;
   safeToSpendNow: number;
   earliestIncomeMonth: string | null;
+  safetyReserveTarget: number;
+  riskBandAvailable: number;
+  postPurchaseCoreReserve: number;
+  barbellSafetyViolation: boolean;
+  inflationRateAnnual: number | null;
+  inflationAdjustedCostOfWaiting: number | null;
+  waitingMonths: number;
+  marginOfSafety: number;
+  marketDataStatus: MarketContext["status"];
+  marketDataFetchedAt: string | null;
 }
 
 interface PurchaseCheckResult {
   verdict: Verdict;
   partialAmount: number | null;
   reasoning: string;
+  barbellCheck: string;
+  inflationAssessment: string;
   action: string;
   responseText: string;
   context: Omit<PurchaseContext, "query">;
@@ -58,6 +72,12 @@ function addMonths(month: string, count: number) {
   const [year, monthNumber] = month.split("-").map(Number);
   const date = new Date(Date.UTC(year, monthNumber - 1 + count, 1));
   return date.toISOString().slice(0, 7);
+}
+
+function monthsBetween(start: string, end: string) {
+  const [startYear, startMonth] = start.split("-").map(Number);
+  const [endYear, endMonth] = end.split("-").map(Number);
+  return Math.max(1, (endYear - startYear) * 12 + endMonth - startMonth);
 }
 
 function extractAmount(query: string): number | null {
@@ -92,21 +112,29 @@ function wordLimit(value: string, maxWords: number) {
   return words.length <= maxWords ? value.trim() : `${words.slice(0, maxWords).join(" ")}…`;
 }
 
-function formatResponse(verdict: Verdict, partialAmount: number | null, reasoning: string, action: string) {
+function formatResponse(
+  verdict: Verdict,
+  partialAmount: number | null,
+  barbellCheck: string,
+  inflationAssessment: string,
+  action: string,
+) {
   const verdictText = verdict === "PARTIAL" ? `PARTIAL (${fmtSom(partialAmount ?? 0)})` : verdict;
   return [
     `Вердикт: ${verdictText}`,
-    `Причина: ${wordLimit(reasoning, 29)}`,
+    `Проверка Barbell: ${wordLimit(barbellCheck, 17)}`,
+    `Инфляция и запас: ${wordLimit(inflationAssessment, 21)}`,
     `Действие: ${wordLimit(action, 24)}`,
   ].join("\n");
 }
 
 async function gatherContext(query: string, ownerId: string): Promise<PurchaseContext> {
-  const [profiles, expenses, debts, incomes] = await Promise.all([
+  const [profiles, expenses, debts, incomes, market] = await Promise.all([
     db.select().from(profileTable).where(eq(profileTable.ownerId, ownerId)).limit(1),
     db.select().from(expensesTable).where(eq(expensesTable.ownerId, ownerId)),
     db.select().from(debtsTable).where(eq(debtsTable.ownerId, ownerId)),
     db.select().from(incomesTable).where(eq(incomesTable.ownerId, ownerId)),
+    getMarketContext(),
   ]);
   const profile = profiles[0];
   const month = currentMonth();
@@ -139,7 +167,24 @@ async function gatherContext(query: string, ownerId: string): Promise<PurchaseCo
   const plannedIncome = plannedIncomeEntries.reduce((sum, income) => sum + income.amount, 0);
   const liquidity = Math.max(0, profile?.currentSavings ?? 0);
   const minimumReserve = Math.max(fixedBills, debtObligations);
-  const safeToSpendNow = Math.max(0, liquidity - upcomingObligations - minimumReserve);
+  const safetyReserveTarget = liquidity * 0.8;
+  const riskBandAvailable = liquidity * 0.2;
+  const postPurchaseCoreReserve = Math.max(0, liquidity - requestedAmount);
+  const barbellSafetyViolation = liquidity > 0
+    ? postPurchaseCoreReserve < safetyReserveTarget
+    : requestedAmount > 0;
+  const inflationRateAnnual = market.inflationAnnualPercent;
+  const waitingMonths = plannedIncomeEntries[0]
+    ? monthsBetween(month, plannedIncomeEntries[0].month)
+    : 1;
+  const inflationAdjustedCostOfWaiting = inflationRateAnnual === null
+    ? null
+    : requestedAmount * (Math.pow(1 + inflationRateAnnual / 100, waitingMonths / 12) - 1);
+  const safeToSpendNow = Math.max(
+    0,
+    Math.min(liquidity - upcomingObligations - minimumReserve, riskBandAvailable),
+  );
+  const marginOfSafety = Math.max(0, safeToSpendNow - requestedAmount);
 
   return {
     query,
@@ -156,17 +201,35 @@ async function gatherContext(query: string, ownerId: string): Promise<PurchaseCo
     plannedIncomeEntries,
     safeToSpendNow,
     earliestIncomeMonth: plannedIncomeEntries[0]?.month ?? null,
+    safetyReserveTarget,
+    riskBandAvailable,
+    postPurchaseCoreReserve,
+    barbellSafetyViolation,
+    inflationRateAnnual,
+    inflationAdjustedCostOfWaiting,
+    waitingMonths,
+    marginOfSafety,
+    marketDataStatus: market.status,
+    marketDataFetchedAt: market.fetchedAt,
   };
 }
 
 function deterministicAdvice(context: PurchaseContext) {
   const safe = roundAmount(context.safeToSpendNow);
   const requested = roundAmount(context.requestedAmount);
+  const barbellCheck = context.barbellSafetyViolation
+    ? `BARBELL SAFETY VIOLATION: покупка оставит менее 80% ликвидности в защищённом резерве.`
+    : `Barbell соблюдён: после покупки защищённый резерв останется не ниже 80% ликвидности.`;
+  const inflationAssessment = context.inflationRateAnnual === null
+    ? "Инфляционные данные временно недоступны; решение опирается на денежный резерв."
+    : `Инфляция ${context.inflationRateAnnual.toFixed(1)}% годовых; ожидание на ${context.waitingMonths} мес. добавит около ${fmtSom(context.inflationAdjustedCostOfWaiting ?? 0)}.`;
   if (requested <= safe) {
     return {
       verdict: "YES" as const,
       partialAmount: null,
-      reasoning: `После покупки останется около ${fmtSom(context.liquidity - requested)} ликвидности; ближайшие обязательства уже учтены.`,
+      reasoning: inflationAssessment,
+      barbellCheck,
+      inflationAssessment,
       action: "Покупка безопасна сейчас, если сумма не вырастет и новых обязательств не появится.",
     };
   }
@@ -174,7 +237,9 @@ function deterministicAdvice(context: PurchaseContext) {
     return {
       verdict: "PARTIAL" as const,
       partialAmount: safe,
-      reasoning: `Сумма ${fmtSom(requested)} выше безопасного лимита: после обязательств и минимального резерва не хватает ${fmtSom(requested - safe)}.`,
+      reasoning: inflationAssessment,
+      barbellCheck,
+      inflationAssessment,
       action: `Сейчас безопасно потратить не больше ${fmtSom(safe)}; остальное — после ближайшего запланированного дохода.`,
     };
   }
@@ -184,7 +249,9 @@ function deterministicAdvice(context: PurchaseContext) {
   return {
     verdict: "NO" as const,
     partialAmount: null,
-    reasoning: `Покупка на ${fmtSom(requested)} уменьшит ликвидность ниже безопасного уровня: обязательства составляют ${fmtSom(context.upcomingObligations)}.`,
+    reasoning: inflationAssessment,
+    barbellCheck,
+    inflationAssessment,
     action: timeline,
   };
 }
@@ -194,13 +261,17 @@ async function askGemini(context: PurchaseContext, safeAdvice: ReturnType<typeof
   const systemInstruction = `Ты — финансовый советник. Отвечай ясно, кратко, прямо и поддерживающе, без морализаторства. Безопасность важнее желания купить.
 Вердикт уже рассчитан системой и НЕ МОЖЕТ быть изменён: ${safeAdvice.verdict}${safeAdvice.partialAmount ? ` (${fmtSom(safeAdvice.partialAmount)})` : ""}.
 Ответ должен быть на русском языке, строго JSON без markdown:
-{"reasoning":"1-2 коротких предложения о влиянии на денежный поток и резерв","action":"ровно один конкретный шаг или срок"}
+{"barbellCheck":"ровно одно предложение о защищённом резерве и нарушении/соблюдении Barbell","inflationAssessment":"1-2 коротких предложения с инфляцией, стоимостью ожидания и запасом","action":"ровно один конкретный шаг или срок"}
 Весь итоговый текст после форматирования обязан быть короче 80 слов. Не придумывай данные и не давай инвестиционных советов.`;
   const userPrompt = `ПРОВЕРКА ПОКУПКИ:
 Запрос пользователя: <<<${context.query}>>>
 Сумма: ${fmtSom(context.requestedAmount)}
 Категория: ${context.categoryLabel}
 Ликвидность/деньги на руках: ${fmtSom(context.liquidity)}
+Защищённый резерв 80%: ${fmtSom(context.safetyReserveTarget)}
+Доступная риск-зона 20%: ${fmtSom(context.riskBandAvailable)}
+Резерв после покупки: ${fmtSom(context.postPurchaseCoreReserve)}
+Нарушение Barbell: ${context.barbellSafetyViolation ? "ДА" : "НЕТ"}
 Обязательные счета на ближайшие 30 дней: ${fmtSom(context.fixedBills)}
 Долговые обязательства на ближайшие 30 дней: ${fmtSom(context.debtObligations)}
 Всего обязательств: ${fmtSom(context.upcomingObligations)}
@@ -208,19 +279,30 @@ async function askGemini(context: PurchaseContext, safeAdvice: ReturnType<typeof
 План категории: ${fmtSom(context.categoryBudget)}
 Запланированный будущий доход: ${fmtSom(context.plannedIncome)}
 Безопасно потратить сейчас: ${fmtSom(context.safeToSpendNow)}
-Сформулируй только reasoning и action.`;
-  const response = await genai.models.generateContent({
+Инфляция: ${context.inflationRateAnnual === null ? "нет данных" : `${context.inflationRateAnnual.toFixed(1)}% годовых`}
+Стоимость ожидания: ${context.inflationAdjustedCostOfWaiting === null ? "нет данных" : fmtSom(context.inflationAdjustedCostOfWaiting)}
+Сформулируй только barbellCheck, inflationAssessment и action.`;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const request = genai.models.generateContent({
     model: "gemini-3.6-flash",
     contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     config: { systemInstruction, temperature: 0.2, responseMimeType: "application/json" },
   });
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Gemini wording timeout")), GEMINI_WORDING_TIMEOUT_MS);
+  });
+  const response = await Promise.race([request, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
   const clean = (response.text ?? "").replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-  const parsed = JSON.parse(clean) as { reasoning?: unknown; action?: unknown };
-  if (typeof parsed.reasoning !== "string" || typeof parsed.action !== "string") {
+  const parsed = JSON.parse(clean) as { barbellCheck?: unknown; inflationAssessment?: unknown; action?: unknown };
+  if (typeof parsed.barbellCheck !== "string" || typeof parsed.inflationAssessment !== "string" || typeof parsed.action !== "string") {
     throw new Error("Gemini returned an invalid purchase-check shape");
   }
   return {
-    reasoning: parsed.reasoning,
+    reasoning: parsed.inflationAssessment,
+    barbellCheck: parsed.barbellCheck,
+    inflationAssessment: parsed.inflationAssessment,
     action: parsed.action,
   };
 }
@@ -229,11 +311,15 @@ export async function runPurchaseCheck(query: string, ownerId: string): Promise<
   const context = await gatherContext(query, ownerId);
   const safeAdvice = deterministicAdvice(context);
   let reasoning = safeAdvice.reasoning;
+  let barbellCheck = safeAdvice.barbellCheck;
+  let inflationAssessment = safeAdvice.inflationAssessment;
   let action = safeAdvice.action;
   let isFallback = true;
   try {
     const llmAdvice = await askGemini(context, safeAdvice);
     reasoning = llmAdvice.reasoning;
+    barbellCheck = llmAdvice.barbellCheck;
+    inflationAssessment = llmAdvice.inflationAssessment;
     action = llmAdvice.action;
     isFallback = false;
   } catch (error) {
@@ -245,8 +331,10 @@ export async function runPurchaseCheck(query: string, ownerId: string): Promise<
     verdict: safeAdvice.verdict,
     partialAmount: safeAdvice.partialAmount,
     reasoning,
+    barbellCheck,
+    inflationAssessment,
     action,
-    responseText: formatResponse(safeAdvice.verdict, safeAdvice.partialAmount, reasoning, action),
+    responseText: formatResponse(safeAdvice.verdict, safeAdvice.partialAmount, barbellCheck, inflationAssessment, action),
     context: {
       requestedAmount: context.requestedAmount,
       requestedCategory: context.requestedCategory,
@@ -261,6 +349,16 @@ export async function runPurchaseCheck(query: string, ownerId: string): Promise<
       plannedIncomeEntries: context.plannedIncomeEntries,
       safeToSpendNow: context.safeToSpendNow,
       earliestIncomeMonth: context.earliestIncomeMonth,
+      safetyReserveTarget: context.safetyReserveTarget,
+      riskBandAvailable: context.riskBandAvailable,
+      postPurchaseCoreReserve: context.postPurchaseCoreReserve,
+      barbellSafetyViolation: context.barbellSafetyViolation,
+      inflationRateAnnual: context.inflationRateAnnual,
+      inflationAdjustedCostOfWaiting: context.inflationAdjustedCostOfWaiting,
+      waitingMonths: context.waitingMonths,
+      marginOfSafety: context.marginOfSafety,
+      marketDataStatus: context.marketDataStatus,
+      marketDataFetchedAt: context.marketDataFetchedAt,
     },
     isFallback,
   };

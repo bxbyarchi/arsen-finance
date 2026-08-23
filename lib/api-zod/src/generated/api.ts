@@ -490,6 +490,8 @@ export const CheckPurchaseSafetyResponse = zod.object({
   "verdict": zod.enum(['YES', 'NO', 'PARTIAL']),
   "partialAmount": zod.number().nullish(),
   "reasoning": zod.string(),
+  "barbellCheck": zod.string(),
+  "inflationAssessment": zod.string(),
   "action": zod.string(),
   "responseText": zod.string().describe('Formatted answer under 80 words'),
   "context": zod.object({
@@ -509,7 +511,17 @@ export const CheckPurchaseSafetyResponse = zod.object({
   "month": zod.string()
 })),
   "safeToSpendNow": zod.number(),
-  "earliestIncomeMonth": zod.string().nullish()
+  "earliestIncomeMonth": zod.string().nullish(),
+  "safetyReserveTarget": zod.number(),
+  "riskBandAvailable": zod.number(),
+  "postPurchaseCoreReserve": zod.number(),
+  "barbellSafetyViolation": zod.boolean(),
+  "inflationRateAnnual": zod.number().nullable(),
+  "inflationAdjustedCostOfWaiting": zod.number().nullable(),
+  "waitingMonths": zod.number(),
+  "marginOfSafety": zod.number(),
+  "marketDataStatus": zod.enum(['live', 'cache', 'unavailable']),
+  "marketDataFetchedAt": zod.string().nullable()
 }),
   "isFallback": zod.boolean()
 })
@@ -1031,6 +1043,14 @@ export const ListBusinessHypothesesResponseItem = zod.object({
   "status": zod.enum(['learning_zone', 'performance_zone', 'archived']),
   "projectedBudget": zod.number(),
   "actualRiskImpact": zod.number(),
+  "expectedMonthlyRevenue": zod.number(),
+  "expectedMonthlyCosts": zod.number(),
+  "stressTestRevenue": zod.number().nullish(),
+  "stressTestCosts": zod.number().nullish(),
+  "conservativePaybackMonths": zod.number().nullish(),
+  "marginOfSafety": zod.number().nullish(),
+  "riskRating": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal('Barbell Violation'),zod.literal(null)]).nullish(),
+  "evaluatedAt": zod.string().nullish(),
   "keyLessons": zod.string().nullish(),
   "createdAt": zod.string()
 })
@@ -1045,6 +1065,8 @@ export const CreateBusinessHypothesisBody = zod.object({
   "status": zod.enum(['learning_zone', 'performance_zone', 'archived']).optional(),
   "projectedBudget": zod.number().optional(),
   "actualRiskImpact": zod.number().optional(),
+  "expectedMonthlyRevenue": zod.number().optional(),
+  "expectedMonthlyCosts": zod.number().optional(),
   "keyLessons": zod.string().optional()
 })
 
@@ -1054,8 +1076,60 @@ export const CreateBusinessHypothesisResponse = zod.object({
   "status": zod.enum(['learning_zone', 'performance_zone', 'archived']),
   "projectedBudget": zod.number(),
   "actualRiskImpact": zod.number(),
+  "expectedMonthlyRevenue": zod.number(),
+  "expectedMonthlyCosts": zod.number(),
+  "stressTestRevenue": zod.number().nullish(),
+  "stressTestCosts": zod.number().nullish(),
+  "conservativePaybackMonths": zod.number().nullish(),
+  "marginOfSafety": zod.number().nullish(),
+  "riskRating": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal('Barbell Violation'),zod.literal(null)]).nullish(),
+  "evaluatedAt": zod.string().nullish(),
   "keyLessons": zod.string().nullish(),
   "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Stress-test a business hypothesis with Graham and Barbell rules
+ */
+export const EvaluateBusinessHypothesisBody = zod.object({
+  "hypothesisId": zod.number().optional().describe('Existing hypothesis to re-evaluate'),
+  "title": zod.string().optional().describe('Required when evaluating and saving a new hypothesis'),
+  "projectedBudget": zod.number().optional(),
+  "expectedMonthlyRevenue": zod.number().optional(),
+  "expectedMonthlyCosts": zod.number().optional()
+})
+
+export const EvaluateBusinessHypothesisResponse = zod.object({
+  "hypothesis": zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['learning_zone', 'performance_zone', 'archived']),
+  "projectedBudget": zod.number(),
+  "actualRiskImpact": zod.number(),
+  "expectedMonthlyRevenue": zod.number(),
+  "expectedMonthlyCosts": zod.number(),
+  "stressTestRevenue": zod.number().nullish(),
+  "stressTestCosts": zod.number().nullish(),
+  "conservativePaybackMonths": zod.number().nullish(),
+  "marginOfSafety": zod.number().nullish(),
+  "riskRating": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal('Barbell Violation'),zod.literal(null)]).nullish(),
+  "evaluatedAt": zod.string().nullish(),
+  "keyLessons": zod.string().nullish(),
+  "createdAt": zod.string()
+}),
+  "evaluation": zod.object({
+  "projectedBudget": zod.number(),
+  "expectedMonthlyRevenue": zod.number(),
+  "expectedMonthlyCosts": zod.number(),
+  "stressTestRevenue": zod.number(),
+  "stressTestCosts": zod.number(),
+  "conservativePaybackMonths": zod.number().nullable(),
+  "marginOfSafety": zod.number(),
+  "riskRating": zod.enum(['Low', 'Medium', 'High', 'Barbell Violation']),
+  "riskCapitalLimit": zod.number(),
+  "isBarbellViolation": zod.boolean()
+})
 })
 
 
@@ -1071,6 +1145,8 @@ export const UpdateBusinessHypothesisBody = zod.object({
   "status": zod.enum(['learning_zone', 'performance_zone', 'archived']).optional(),
   "projectedBudget": zod.number().optional(),
   "actualRiskImpact": zod.number().optional(),
+  "expectedMonthlyRevenue": zod.number().optional(),
+  "expectedMonthlyCosts": zod.number().optional(),
   "keyLessons": zod.string().optional()
 })
 
@@ -1080,6 +1156,14 @@ export const UpdateBusinessHypothesisResponse = zod.object({
   "status": zod.enum(['learning_zone', 'performance_zone', 'archived']),
   "projectedBudget": zod.number(),
   "actualRiskImpact": zod.number(),
+  "expectedMonthlyRevenue": zod.number(),
+  "expectedMonthlyCosts": zod.number(),
+  "stressTestRevenue": zod.number().nullish(),
+  "stressTestCosts": zod.number().nullish(),
+  "conservativePaybackMonths": zod.number().nullish(),
+  "marginOfSafety": zod.number().nullish(),
+  "riskRating": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal('Barbell Violation'),zod.literal(null)]).nullish(),
+  "evaluatedAt": zod.string().nullish(),
   "keyLessons": zod.string().nullish(),
   "createdAt": zod.string()
 })
@@ -1115,6 +1199,16 @@ export const ReflectOnBusinessHypothesisResponse = zod.object({
   "status": zod.enum(['learning_zone', 'performance_zone', 'archived']),
   "projectedBudget": zod.number(),
   "actualRiskImpact": zod.number(),
+  "expectedMonthlyRevenue": zod.number(),
+  "expectedMonthlyCosts": zod.number(),
+  "stressTestRevenue": zod.number().nullish(),
+  "stressTestCosts": zod.number().nullish(),
+  "conservativePaybackMonths": zod.number().nullish(),
+  "marginOfSafety": zod.number().nullish(),
+  "riskRating": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal('Barbell Violation'),zod.literal(null)]).nullish(),
+  "evaluatedAt": zod.string().nullish(),
   "keyLessons": zod.string().nullish(),
   "createdAt": zod.string()
 })
+
+

@@ -3,12 +3,13 @@ import {
   BusinessHypothesisInputStatus,
   useCreateBusinessHypothesis,
   useDeleteBusinessHypothesis,
+  useEvaluateBusinessHypothesis,
   useListBusinessHypotheses,
   useReflectOnBusinessHypothesis,
   useUpdateBusinessHypothesis,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Archive, Beaker, CircleDollarSign, Lightbulb, Trash2 } from "lucide-react";
+import { Archive, Beaker, CircleDollarSign, Lightbulb, ShieldCheck, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,12 @@ const ZONE_STYLE: Record<string, string> = {
   performance_zone: "border-emerald-500/30 bg-emerald-500/5",
   archived: "border-muted bg-muted/20",
 };
+const RISK_STYLE: Record<string, string> = {
+  Low: "text-emerald-600",
+  Medium: "text-amber-600",
+  High: "text-orange-600",
+  "Barbell Violation": "text-destructive",
+};
 
 export default function Hypotheses() {
   const queryClient = useQueryClient();
@@ -37,7 +44,11 @@ export default function Hypotheses() {
   const updateHypothesis = useUpdateBusinessHypothesis();
   const reflect = useReflectOnBusinessHypothesis();
   const deleteHypothesis = useDeleteBusinessHypothesis();
-  const [form, setForm] = useState({ title: "", status: "learning_zone", projectedBudget: "", actualRiskImpact: "" });
+  const evaluate = useEvaluateBusinessHypothesis();
+  const [form, setForm] = useState({
+    title: "", status: "learning_zone", projectedBudget: "", actualRiskImpact: "",
+    expectedMonthlyRevenue: "", expectedMonthlyCosts: "",
+  });
   const [reflectionId, setReflectionId] = useState<number | null>(null);
   const [reflection, setReflection] = useState({ worked: "", failed: "", adjust: "", keyLessons: "" });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["/api/hypotheses"] });
@@ -54,13 +65,32 @@ export default function Hypotheses() {
         status: form.status as BusinessHypothesisInputStatus,
         projectedBudget: Number(form.projectedBudget || 0),
         actualRiskImpact: Number(form.actualRiskImpact || 0),
+        expectedMonthlyRevenue: Number(form.expectedMonthlyRevenue || 0),
+        expectedMonthlyCosts: Number(form.expectedMonthlyCosts || 0),
       },
     }, {
       onSuccess: () => {
-        setForm({ title: "", status: "learning_zone", projectedBudget: "", actualRiskImpact: "" });
+        setForm({
+          title: "", status: "learning_zone", projectedBudget: "", actualRiskImpact: "",
+          expectedMonthlyRevenue: "", expectedMonthlyCosts: "",
+        });
         refresh();
-        toast({ title: "Гипотеза добавлена", description: "В Learning Zone ошибки — это данные, а не провал." });
+        toast({ title: "Гипотеза проверена", description: "Стресс-тест сохранён вместе с новой гипотезой." });
       },
+    });
+  };
+  const evaluateExisting = (hypothesisId: number) => {
+    evaluate.mutate({ data: { hypothesisId } }, {
+      onSuccess: (result) => {
+        refresh();
+        toast({
+          title: `Риск: ${result.evaluation.riskRating}`,
+          description: result.evaluation.conservativePaybackMonths === null
+            ? "При стресс-сценарии идея не окупается."
+            : `Консервативная окупаемость: ${result.evaluation.conservativePaybackMonths.toLocaleString("ru-RU")} мес.`,
+        });
+      },
+      onError: () => toast({ title: "Не удалось проверить гипотезу", description: "Проверьте финансовые допущения и попробуйте снова.", variant: "destructive" }),
     });
   };
   const submitReflection = (event: React.FormEvent) => {
@@ -91,8 +121,10 @@ export default function Hypotheses() {
             <div className="md:col-span-2 space-y-2"><Label>Гипотеза</Label><Input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Например: короткие видео приведут 10 заявок" /></div>
             <div className="space-y-2"><Label>Зона</Label><Select value={form.status} onValueChange={(status) => setForm({ ...form, status })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="learning_zone">Learning Zone</SelectItem><SelectItem value="performance_zone">Performance Zone</SelectItem></SelectContent></Select></div>
             <div className="space-y-2"><Label>Бюджет, сом</Label><Input type="number" min="0" value={form.projectedBudget} onChange={(event) => setForm({ ...form, projectedBudget: event.target.value })} placeholder="0" /></div>
+            <div className="space-y-2"><Label>Доход/мес, сом</Label><Input type="number" min="0" value={form.expectedMonthlyRevenue} onChange={(event) => setForm({ ...form, expectedMonthlyRevenue: event.target.value })} placeholder="Ожидаемый доход" /></div>
+            <div className="space-y-2"><Label>Расходы/мес, сом</Label><Input type="number" min="0" value={form.expectedMonthlyCosts} onChange={(event) => setForm({ ...form, expectedMonthlyCosts: event.target.value })} placeholder="Ожидаемые расходы" /></div>
             <div className="md:col-span-3 space-y-2"><Label>Влияние риска, сом</Label><Input type="number" min="0" value={form.actualRiskImpact} onChange={(event) => setForm({ ...form, actualRiskImpact: event.target.value })} placeholder="Максимально приемлемая цена обучения" /></div>
-            <Button type="submit" disabled={createHypothesis.isPending}><Lightbulb className="h-4 w-4 mr-2" /> Добавить гипотезу</Button>
+            <Button type="submit" disabled={createHypothesis.isPending}><Lightbulb className="h-4 w-4 mr-2" /> Добавить и стресс-тестировать</Button>
           </form>
         </CardContent>
       </Card>
@@ -105,9 +137,10 @@ export default function Hypotheses() {
               {(hypotheses ?? []).filter((item) => item.status === zone).length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Пока пусто</p> : (hypotheses ?? []).filter((item) => item.status === zone).map((hypothesis) => (
                 <div key={hypothesis.id} className="rounded-lg border bg-card/70 p-4 space-y-3">
                   <div className="flex justify-between gap-3"><p className="font-semibold">{hypothesis.title}</p><Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteHypothesis.mutate({ id: hypothesis.id }, { onSuccess: refresh })}><Trash2 className="h-4 w-4" /></Button></div>
-                  <div className="grid grid-cols-2 gap-2 text-xs"><div className="rounded bg-muted p-2"><p className="text-muted-foreground">Бюджет</p><p className="font-mono font-semibold">{hypothesis.projectedBudget.toLocaleString("ru-RU")} сом</p></div><div className="rounded bg-muted p-2"><p className="text-muted-foreground">Риск</p><p className="font-mono font-semibold">{hypothesis.actualRiskImpact.toLocaleString("ru-RU")} сом</p></div></div>
+                   <div className="grid grid-cols-2 gap-2 text-xs"><div className="rounded bg-muted p-2"><p className="text-muted-foreground">Бюджет</p><p className="font-mono font-semibold">{hypothesis.projectedBudget.toLocaleString("ru-RU")} сом</p></div><div className="rounded bg-muted p-2"><p className="text-muted-foreground">Риск</p><p className="font-mono font-semibold">{hypothesis.actualRiskImpact.toLocaleString("ru-RU")} сом</p></div></div>
+                   {hypothesis.riskRating && <div className="rounded border bg-background/60 p-2 text-xs space-y-1"><div className="flex justify-between gap-2"><span className="text-muted-foreground">Graham + Barbell</span><span className={`font-semibold ${RISK_STYLE[hypothesis.riskRating] ?? ""}`}>{hypothesis.riskRating}</span></div><p className="text-muted-foreground">Стресс: доход −30%, расходы +20%</p><p>Окупаемость: <span className="font-mono font-semibold">{hypothesis.conservativePaybackMonths == null ? "не окупается" : `${hypothesis.conservativePaybackMonths.toLocaleString("ru-RU")} мес.`}</span> · запас: <span className="font-mono font-semibold">{hypothesis.marginOfSafety?.toLocaleString("ru-RU") ?? "0"}%</span></p></div>}
                   {hypothesis.keyLessons && <p className="whitespace-pre-line text-xs text-muted-foreground">{hypothesis.keyLessons}</p>}
-                  {zone !== "archived" && <div className="flex gap-2 flex-wrap"><Button size="sm" variant="outline" onClick={() => updateHypothesis.mutate({ id: hypothesis.id, data: { status: zone === "learning_zone" ? "performance_zone" : "learning_zone" } }, { onSuccess: refresh })}>{zone === "learning_zone" ? "В Performance" : "Вернуть в Learning"}</Button><Button size="sm" onClick={() => setReflectionId(hypothesis.id)}><Archive className="h-3.5 w-3.5 mr-1" /> Beyoncé Loop</Button></div>}
+                   {zone !== "archived" && <div className="flex gap-2 flex-wrap"><Button size="sm" variant="outline" disabled={evaluate.isPending} onClick={() => evaluateExisting(hypothesis.id)}><ShieldCheck className="h-3.5 w-3.5 mr-1" /> Стресс-тест</Button><Button size="sm" variant="outline" onClick={() => updateHypothesis.mutate({ id: hypothesis.id, data: { status: zone === "learning_zone" ? "performance_zone" : "learning_zone" } }, { onSuccess: refresh })}>{zone === "learning_zone" ? "В Performance" : "Вернуть в Learning"}</Button><Button size="sm" onClick={() => setReflectionId(hypothesis.id)}><Archive className="h-3.5 w-3.5 mr-1" /> Beyoncé Loop</Button></div>}
                 </div>
               ))}
             </CardContent>

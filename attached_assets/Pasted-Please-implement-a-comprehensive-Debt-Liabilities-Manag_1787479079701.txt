@@ -1,0 +1,46 @@
+Please implement a comprehensive Debt & Liabilities Management Module including database schema, CRUD API, payment execution endpoints, historical analytics, and Telegram Bot shortcuts.
+
+### 1. Database Schema Update (PostgreSQL)
+Create table `debts`:
+- `id` (serial primary key)
+- `title` (string, e.g., "Mbank Credit", "Supplier Loan")
+- `creditor_name` (string, e.g., "Demir Bank", "Partner")
+- `type` (string: 'bank_loan', 'installment', 'personal_debt', 'receivable')
+- `total_initial_amount` (numeric)
+- `remaining_balance` (numeric)
+- `monthly_payment` (numeric)
+- `due_day_of_month` (integer, 1-31)
+- `interest_rate_annual` (numeric, default 0)
+- `status` (string: 'active', 'paid_off')
+- `created_at` (timestamp)
+- `fully_paid_at` (timestamp, nullable)
+
+Create table `debt_payments`:
+- `id` (serial primary key)
+- `debt_id` (foreign key -> debts.id)
+- `amount_paid` (numeric)
+- `payment_date` (timestamp)
+- `payment_type` (string: 'regular_monthly', 'early_payoff')
+- `notes` (text)
+
+### 2. Backend API Routes (`/api/debts`)
+- `GET /api/debts`: Fetch all active debts, upcoming monthly deadlines, and total debt burden.
+- `GET /api/debts/history`: Fetch closed/paid-off debts with total statistics (total principal paid, total monthly installments cleared).
+- `POST /api/debts`: Create new debt or loan agreement.
+- `POST /api/debts/:id/pay`: Execute a payment.
+  - Decreases `remaining_balance` of the debt.
+  - Creates a record in `debt_payments`.
+  - Creates a corresponding outgoing transaction in `transactions` (tagged as 'debt_repayment').
+  - Automatically updates `status` to 'paid_off' and sets `fully_paid_at` if `remaining_balance` reaches 0.
+- `GET /api/debts/upcoming`: Fetch obligations due in the next 30 days for cashflow calculations and AI Advisor risk assessment.
+
+### 3. Frontend UI Components (React / Tailwind / shadcn)
+- **Debt Overview Dashboard**:
+  - Stat cards: Total Active Debt, Monthly Debt Service Burden, Total Paid Off to Date (% progress bar).
+  - Upcoming Payments Schedule (cards with "Pay Now" button).
+- **Pay Debt Modal**: Quick modal to register monthly or partial early payments with 1 click.
+- **Archive & History Tab**: Dedicated view displaying all cleared loans, past payment timelines, and achievements.
+
+### 4. Integration with Telegram Bot & AI Advisor
+- **Quick Command via Bot**: Allow users to type `Оплатил кредит 15000` or `Погасил долг МБанк 5000` to execute payments directly through Telegram.
+- **Advisor Awareness**: Update the AI Advisor prompt to incorporate upcoming debt due dates within the next 14 days when giving "YES/NO" advice on discretionary spending.

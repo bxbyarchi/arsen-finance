@@ -960,6 +960,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/BusinessHypothesis"
 
+  /hypotheses/evaluate:
+    post:
+      operationId: evaluateBusinessHypothesis
+      tags: [hypotheses]
+      summary: Stress-test a business hypothesis with Graham and Barbell rules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HypothesisEvaluationInput"
+      responses:
+        "200":
+          description: Updated existing hypothesis evaluation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HypothesisEvaluationResult"
+        "201":
+          description: Created and evaluated hypothesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HypothesisEvaluationResult"
+
   /hypotheses/{id}:
     patch:
       operationId: updateBusinessHypothesis
@@ -1813,7 +1838,7 @@ components:
     # ─── Hypotheses sandbox ───────────────────────────────────
     BusinessHypothesis:
       type: object
-      required: [id, title, status, projectedBudget, actualRiskImpact, createdAt]
+      required: [id, title, status, projectedBudget, actualRiskImpact, expectedMonthlyRevenue, expectedMonthlyCosts, createdAt]
       properties:
         id:
           type: number
@@ -1826,6 +1851,23 @@ components:
           type: number
         actualRiskImpact:
           type: number
+        expectedMonthlyRevenue:
+          type: number
+        expectedMonthlyCosts:
+          type: number
+        stressTestRevenue:
+          type: ["number", "null"]
+        stressTestCosts:
+          type: ["number", "null"]
+        conservativePaybackMonths:
+          type: ["number", "null"]
+        marginOfSafety:
+          type: ["number", "null"]
+        riskRating:
+          type: ["string", "null"]
+          enum: [Low, Medium, High, Barbell Violation, null]
+        evaluatedAt:
+          type: ["string", "null"]
         keyLessons:
           type: ["string", "null"]
         createdAt:
@@ -1844,6 +1886,10 @@ components:
           type: number
         actualRiskImpact:
           type: number
+        expectedMonthlyRevenue:
+          type: number
+        expectedMonthlyCosts:
+          type: number
         keyLessons:
           type: string
 
@@ -1859,6 +1905,10 @@ components:
           type: number
         actualRiskImpact:
           type: number
+        expectedMonthlyRevenue:
+          type: number
+        expectedMonthlyCosts:
+          type: number
         keyLessons:
           type: string
 
@@ -1873,6 +1923,57 @@ components:
           type: string
         keyLessons:
           type: string
+
+    HypothesisEvaluationInput:
+      type: object
+      properties:
+        hypothesisId:
+          type: number
+          description: Existing hypothesis to re-evaluate
+        title:
+          type: string
+          description: Required when evaluating and saving a new hypothesis
+        projectedBudget:
+          type: number
+        expectedMonthlyRevenue:
+          type: number
+        expectedMonthlyCosts:
+          type: number
+
+    HypothesisEvaluation:
+      type: object
+      required: [projectedBudget, expectedMonthlyRevenue, expectedMonthlyCosts, stressTestRevenue, stressTestCosts, conservativePaybackMonths, marginOfSafety, riskRating, riskCapitalLimit, isBarbellViolation]
+      properties:
+        projectedBudget:
+          type: number
+        expectedMonthlyRevenue:
+          type: number
+        expectedMonthlyCosts:
+          type: number
+        stressTestRevenue:
+          type: number
+        stressTestCosts:
+          type: number
+        conservativePaybackMonths:
+          type: ["number", "null"]
+        marginOfSafety:
+          type: number
+        riskRating:
+          type: string
+          enum: [Low, Medium, High, Barbell Violation]
+        riskCapitalLimit:
+          type: number
+        isBarbellViolation:
+          type: boolean
+
+    HypothesisEvaluationResult:
+      type: object
+      required: [hypothesis, evaluation]
+      properties:
+        hypothesis:
+          $ref: "#/components/schemas/BusinessHypothesis"
+        evaluation:
+          $ref: "#/components/schemas/HypothesisEvaluation"
 
     # ─── Purchase advisor ─────────────────────────────────────
     PurchaseCheckInput:
@@ -1896,7 +1997,7 @@ components:
 
     PurchaseContext:
       type: object
-      required: [requestedAmount, requestedCategory, categoryLabel, liquidity, upcomingObligations, fixedBills, debtObligations, categoryActual, categoryBudget, plannedIncome, plannedIncomeEntries, safeToSpendNow]
+      required: [requestedAmount, requestedCategory, categoryLabel, liquidity, upcomingObligations, fixedBills, debtObligations, categoryActual, categoryBudget, plannedIncome, plannedIncomeEntries, safeToSpendNow, safetyReserveTarget, riskBandAvailable, postPurchaseCoreReserve, barbellSafetyViolation, inflationRateAnnual, inflationAdjustedCostOfWaiting, waitingMonths, marginOfSafety, marketDataStatus, marketDataFetchedAt]
       properties:
         requestedAmount:
           type: number
@@ -1928,10 +2029,31 @@ components:
           type: number
         earliestIncomeMonth:
           type: ["string", "null"]
+        safetyReserveTarget:
+          type: number
+        riskBandAvailable:
+          type: number
+        postPurchaseCoreReserve:
+          type: number
+        barbellSafetyViolation:
+          type: boolean
+        inflationRateAnnual:
+          type: ["number", "null"]
+        inflationAdjustedCostOfWaiting:
+          type: ["number", "null"]
+        waitingMonths:
+          type: number
+        marginOfSafety:
+          type: number
+        marketDataStatus:
+          type: string
+          enum: [live, cache, unavailable]
+        marketDataFetchedAt:
+          type: ["string", "null"]
 
     PurchaseCheckResult:
       type: object
-      required: [verdict, reasoning, action, responseText, context, isFallback]
+      required: [verdict, reasoning, barbellCheck, inflationAssessment, action, responseText, context, isFallback]
       properties:
         verdict:
           type: string
@@ -1939,6 +2061,10 @@ components:
         partialAmount:
           type: ["number", "null"]
         reasoning:
+          type: string
+        barbellCheck:
+          type: string
+        inflationAssessment:
           type: string
         action:
           type: string
