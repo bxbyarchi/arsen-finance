@@ -1,0 +1,58 @@
+Please integrate the Behavioral, Psychological, and Risk Management modules into our application (Arsen Financial OS / Luna ERP). Implement the database schema, backend endpoints, and frontend dashboard components according to the specifications below.
+
+### 1. Database Schema (PostgreSQL / Drizzle / Prisma)
+Add the following tables and fields to the database layer:
+
+- Enum `emotional_trigger`: ('routine', 'stress_buying', 'status_validation', 'burnout_convenience')
+- Extend `transactions` table with:
+  - `emotional_trigger` (enum)
+  - `is_impulse_buy` (boolean, default: false)
+- Create `user_financial_profiles` table:
+  - `user_id` (primary key, references users)
+  - `money_script_type` (string: 'avoidance', 'worship', 'status', 'vigilance')
+  - `risk_tolerance_index` (decimal/numeric)
+  - `autonomy_score` (integer, range 0-100)
+  - `updated_at` (timestamp)
+- Create `business_hypotheses` table:
+  - `id` (serial primary key)
+  - `title` (string)
+  - `status` (string: 'learning_zone', 'performance_zone', 'archived')
+  - `projected_budget` (numeric)
+  - `actual_risk_impact` (numeric)
+  - `key_lessons` (text)
+  - `created_at` (timestamp)
+- Create `digital_vault_docs` table:
+  - `id` (serial primary key)
+  - `doc_category` (string: 'bank_account', 'tax_file', 'contract', 'emergency_plan')
+  - `title` (string)
+  - `encrypted_payload` (text)
+  - `last_verified_at` (timestamp)
+
+### 2. Backend Routes & Logic (Node.js / Express or Next.js API)
+1. **Behavioral Tagging API (`POST /api/transactions/classify`)**:
+   - Accepts transaction details.
+   - Evaluates spending metadata (e.g., late night, impulse purchases) and tags transactions with appropriate `emotional_trigger` values.
+   - Implements a "No-Shame Protocol": API responses must return empathetic, constructive financial guidance instead of punitive warnings.
+
+2. **Hypotheses & Learning Zone API (`GET/POST /api/hypotheses`)**:
+   - Manages CRUD operations for the Learning Zone / Sandbox (`business_hypotheses`).
+   - Includes a post-project reflection handler ("Beyoncé Loop") to log key lessons learned.
+
+3. **Autonomy & Digital Vault API (`GET/POST /api/vault`)**:
+   - Handles records in `digital_vault_docs`.
+   - Computes an `autonomy_score` for the user based on document update freshness (flags warning if critical accounts haven't been verified in 60+ days).
+
+### 3. Frontend UI Components (React / Tailwind / shadcn)
+1. **Financial Autonomy & Vault Panel**:
+   - Visual gauge for `autonomy_score`.
+   - Document checklist for critical credentials, contracts, and backup plans.
+
+2. **Emotional Spend Tracker**:
+   - Transaction list view with badges for `stress_buying`, `burnout_convenience`, and `status_validation`.
+   - Highlighting impulse purchases with neutral, constructive feedback.
+
+3. **Hypotheses Sandbox (Learning Zone vs. Performance Zone)**:
+   - Kanban or list interface to track business experiments before deploying real capital.
+   - Form to log post-event reflections ("What worked? What failed? What to adjust?").
+
+Please generate the necessary database migrations, API routes, and React UI elements step-by-step.
