@@ -1,0 +1,28 @@
+Please upgrade the AI Advisor (`/api/advisor/purchase-check`) and the Hypotheses Sandbox module by integrating Graham's Margin of Safety, Taleb's Barbell Strategy, and market/inflation tracking logic.
+
+### 1. Market & Inflation API Integration
+- Implement a service (`/services/marketData.ts`) fetching exchange rates (USD/KGS, EUR/KGS, etc.) and inflation estimates using free financial APIs (e.g., Alpha Vantage, ExchangeRate-API, or Exchangerate.host).
+- Store cached daily exchange rates and inflation adjustments to assess the real purchasing power of saved capital.
+
+2. Investment & Large Purchase Frameworks (System Logic)
+Incorporate two core institutional methodologies into the AI Advisor system prompt:
+A. Taleb's Barbell Strategy:
+   - Ensure 80–90% of user liquidity is allocated to ultra-safe capital (emergency fund, fixed operational reserves, zero-risk accounts).
+   - Only 10–20% maximum can be exposed to high-risk investments, volatile assets, or aggressive business experiments.
+   - If a large purchase or investment breaches the 80% safety reserve, the Advisor must flag a "BARBELL SAFETY VIOLATION".
+B. Graham's Margin of Safety:
+   - For any business hypothesis or major investment, require a minimum safety margin (e.g., assessing payback period assuming revenues are 30% below projections and costs are 20% higher).
+
+3. Enhanced AI Advisor API (`POST /api/advisor/purchase-check`)
+Update the prompt and context loader to calculate:
+- Safety Reserve Status (Is the core budget protected according to Taleb's Barbell?).
+- Inflation-adjusted Cost of Waiting (If user delays purchase, how does inflation impact it?).
+- Verdict Output:
+  - **Verdict**: YES / NO / PARTIAL (Amount).
+  - **Risk & Barbell Check**: 1 sentence verifying if safety reserves remain untouched.
+  - **Inflation & Margin Assessment**: 1-2 sentences with hard numbers (assuming revenue downturns or inflation risks).
+  - **Actionable Advice**: Clear, immediate step.
+
+4. Hypotheses Sandbox Evaluation (`POST /api/hypotheses/evaluate`)
+- Add an evaluation endpoint for the Sandbox (`business_hypotheses`).
+- When logging a new investment or business idea, the AI automatically evaluates payback timeline under conservative stress-test conditions (Graham's Margin of Safety) and assigns a Risk Rating (Low/Medium/High/Barbell Violation).
