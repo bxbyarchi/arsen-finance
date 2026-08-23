@@ -57,12 +57,35 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary Force Telegram to register the public webhook URL
+ * @summary Get the signed-in user's Telegram connection status
  */
-export const ForceTelegramWebhookQueryParams = zod.object({
-  "url": zod.coerce.string().optional().describe('Public HTTPS app URL. If omitted, REPLIT_APP_URL or the request host is used.')
+export const GetTelegramLinkStatusResponse = zod.object({
+  "connected": zod.boolean()
 })
 
+
+/**
+ * @summary Create a short-lived one-time Telegram linking command
+ */
+export const CreateTelegramLinkTokenResponse = zod.object({
+  "connected": zod.boolean(),
+  "command": zod.string(),
+  "deepLink": zod.string(),
+  "expiresAt": zod.string()
+})
+
+
+/**
+ * @summary Disconnect the signed-in user's Telegram chat
+ */
+export const UnlinkTelegramAccountResponse = zod.object({
+  "connected": zod.boolean()
+})
+
+
+/**
+ * @summary Register the configured public webhook URL with Telegram
+ */
 export const ForceTelegramWebhookResponse = zod.object({
   "ok": zod.boolean(),
   "result": zod.record(zod.string(), zod.unknown()).optional(),

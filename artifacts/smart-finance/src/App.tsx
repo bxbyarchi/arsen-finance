@@ -18,6 +18,7 @@ import Goals from '@/pages/Goals';
 import Behavioral from '@/pages/Behavioral';
 import Autonomy from '@/pages/Autonomy';
 import Hypotheses from '@/pages/Hypotheses';
+import Settings from '@/pages/Settings';
 import { AuthGate } from '@/components/auth/AuthGate';
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ function Router() {
         <Route path="/behavior" component={Behavioral} />
         <Route path="/autonomy" component={Autonomy} />
         <Route path="/hypotheses" component={Hypotheses} />
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

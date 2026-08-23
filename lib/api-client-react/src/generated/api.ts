@@ -41,7 +41,6 @@ import type {
   FinancialAutonomyProfile,
   FinancialAutonomyProfileUpdate,
   FinancialProfile,
-  ForceTelegramWebhookParams,
   HealthStatus,
   HypothesisEvaluationInput,
   HypothesisEvaluationResult,
@@ -62,6 +61,8 @@ import type {
   SavingsGoal,
   SavingsGoalInput,
   TelegramApiResponse,
+  TelegramLinkStatus,
+  TelegramLinkToken,
   TelegramSetupResult,
   TelegramUpdateInput,
   TelegramWebhookResult,
@@ -499,27 +500,20 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
-export const getForceTelegramWebhookUrl = (params?: ForceTelegramWebhookParams,) => {
-  const normalizedParams = new URLSearchParams();
+export const getGetTelegramLinkStatusUrl = () => {
 
-  Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
 
-  const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/telegram/set-webhook?${stringifiedParams}` : `/api/telegram/set-webhook`
+  return `/api/telegram/link-status`
 }
 
 /**
- * @summary Force Telegram to register the public webhook URL
+ * @summary Get the signed-in user's Telegram connection status
  */
-export const forceTelegramWebhook = async (params?: ForceTelegramWebhookParams, options?: Parameters<typeof customFetch>[1]): Promise<TelegramApiResponse> => {
+export const getTelegramLinkStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<TelegramLinkStatus> => {
 
-  return customFetch<TelegramApiResponse>(getForceTelegramWebhookUrl(params),
+  return customFetch<TelegramLinkStatus>(getGetTelegramLinkStatusUrl(),
   {
     ...options,
     method: 'GET'
@@ -532,23 +526,242 @@ export const forceTelegramWebhook = async (params?: ForceTelegramWebhookParams, 
 
 
 
-export const getForceTelegramWebhookQueryKey = (params?: ForceTelegramWebhookParams,) => {
+export const getGetTelegramLinkStatusQueryKey = () => {
     return [
-    `/api/telegram/set-webhook`, ...(params ? [params] : [])
+    `/api/telegram/link-status`
     ] as const;
     }
 
 
-export const getForceTelegramWebhookQueryOptions = <TData = Awaited<ReturnType<typeof forceTelegramWebhook>>, TError = ErrorType<void>>(params?: ForceTelegramWebhookParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof forceTelegramWebhook>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetTelegramLinkStatusQueryOptions = <TData = Awaited<ReturnType<typeof getTelegramLinkStatus>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramLinkStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getForceTelegramWebhookQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getGetTelegramLinkStatusQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof forceTelegramWebhook>>> = ({ signal }) => forceTelegramWebhook(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTelegramLinkStatus>>> = ({ signal }) => getTelegramLinkStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTelegramLinkStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTelegramLinkStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getTelegramLinkStatus>>>
+export type GetTelegramLinkStatusQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the signed-in user's Telegram connection status
+ */
+
+export function useGetTelegramLinkStatus<TData = Awaited<ReturnType<typeof getTelegramLinkStatus>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTelegramLinkStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTelegramLinkStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTelegramLinkTokenUrl = () => {
+
+
+
+
+  return `/api/telegram/link-token`
+}
+
+/**
+ * @summary Create a short-lived one-time Telegram linking command
+ */
+export const createTelegramLinkToken = async ( options?: Parameters<typeof customFetch>[1]): Promise<TelegramLinkToken> => {
+
+  return customFetch<TelegramLinkToken>(getCreateTelegramLinkTokenUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateTelegramLinkTokenMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTelegramLinkToken>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTelegramLinkToken>>, TError,void, TContext> => {
+
+const mutationKey = ['createTelegramLinkToken'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTelegramLinkToken>>, void> = () => {
+
+
+          return  createTelegramLinkToken(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTelegramLinkTokenMutationResult = NonNullable<Awaited<ReturnType<typeof createTelegramLinkToken>>>
+
+    export type CreateTelegramLinkTokenMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a short-lived one-time Telegram linking command
+ */
+export const useCreateTelegramLinkToken = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTelegramLinkToken>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTelegramLinkToken>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCreateTelegramLinkTokenMutationOptions(options));
+    }
+
+export const getUnlinkTelegramAccountUrl = () => {
+
+
+
+
+  return `/api/telegram/link`
+}
+
+/**
+ * @summary Disconnect the signed-in user's Telegram chat
+ */
+export const unlinkTelegramAccount = async ( options?: Parameters<typeof customFetch>[1]): Promise<TelegramLinkStatus> => {
+
+  return customFetch<TelegramLinkStatus>(getUnlinkTelegramAccountUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnlinkTelegramAccountMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unlinkTelegramAccount>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unlinkTelegramAccount>>, TError,void, TContext> => {
+
+const mutationKey = ['unlinkTelegramAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unlinkTelegramAccount>>, void> = () => {
+
+
+          return  unlinkTelegramAccount(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnlinkTelegramAccountMutationResult = NonNullable<Awaited<ReturnType<typeof unlinkTelegramAccount>>>
+
+    export type UnlinkTelegramAccountMutationError = ErrorType<void>
+
+    /**
+ * @summary Disconnect the signed-in user's Telegram chat
+ */
+export const useUnlinkTelegramAccount = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unlinkTelegramAccount>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unlinkTelegramAccount>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getUnlinkTelegramAccountMutationOptions(options));
+    }
+
+export const getForceTelegramWebhookUrl = () => {
+
+
+
+
+  return `/api/telegram/set-webhook`
+}
+
+/**
+ * @summary Register the configured public webhook URL with Telegram
+ */
+export const forceTelegramWebhook = async ( options?: Parameters<typeof customFetch>[1]): Promise<TelegramApiResponse> => {
+
+  return customFetch<TelegramApiResponse>(getForceTelegramWebhookUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getForceTelegramWebhookQueryKey = () => {
+    return [
+    `/api/telegram/set-webhook`
+    ] as const;
+    }
+
+
+export const getForceTelegramWebhookQueryOptions = <TData = Awaited<ReturnType<typeof forceTelegramWebhook>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof forceTelegramWebhook>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getForceTelegramWebhookQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof forceTelegramWebhook>>> = ({ signal }) => forceTelegramWebhook({ signal, ...requestOptions });
 
 
 
@@ -562,15 +775,15 @@ export type ForceTelegramWebhookQueryError = ErrorType<void>
 
 
 /**
- * @summary Force Telegram to register the public webhook URL
+ * @summary Register the configured public webhook URL with Telegram
  */
 
 export function useForceTelegramWebhook<TData = Awaited<ReturnType<typeof forceTelegramWebhook>>, TError = ErrorType<void>>(
- params?: ForceTelegramWebhookParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof forceTelegramWebhook>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof forceTelegramWebhook>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getForceTelegramWebhookQueryOptions(params,options)
+  const queryOptions = getForceTelegramWebhookQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

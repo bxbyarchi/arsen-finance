@@ -533,9 +533,13 @@ export async function runAdvisorChat(message: string, history: AdvisorChatHistor
 // POST /advisor/chat
 router.post("/advisor/chat", async (req, res) => {
   const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
-  const rawHistory = Array.isArray(req.body?.history) ? req.body.history : [];
+  const rawHistory: unknown[] = Array.isArray(req.body?.history) ? req.body.history : [];
   const history = rawHistory
-    .filter((item): item is AdvisorChatHistoryItem => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string")
+    .filter((item): item is AdvisorChatHistoryItem => {
+      if (!item || typeof item !== "object") return false;
+      const candidate = item as { role?: unknown; content?: unknown };
+      return (candidate.role === "user" || candidate.role === "assistant") && typeof candidate.content === "string";
+    })
     .slice(-12)
     .map((item) => ({ role: item.role, content: item.content.slice(0, 800) }));
   if (!message || message.length > 2_000) {

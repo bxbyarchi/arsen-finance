@@ -26,6 +26,17 @@ export interface TelegramApiResponse {
   [key: string]: unknown;
  }
 
+export interface TelegramLinkStatus {
+  connected: boolean;
+}
+
+export interface TelegramLinkToken {
+  connected: boolean;
+  command: string;
+  deepLink: string;
+  expiresAt: string;
+}
+
 export type TelegramUpdateInputMessageChat = {
   id?: number;
 };
@@ -910,12 +921,5 @@ returnTo?: string;
 
 export type LogoutBrowserSessionParams = {
 returnTo?: string;
-};
-
-export type ForceTelegramWebhookParams = {
-/**
- * Public HTTPS app URL. If omitted, REPLIT_APP_URL or the request host is used.
- */
-url?: string;
 };
 

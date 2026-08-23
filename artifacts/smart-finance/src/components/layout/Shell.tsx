@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Wallet, Receipt, TrendingUp, ShieldAlert, BrainCircuit,
-  Moon, Sun, BarChart3, PiggyBank, Target, HeartHandshake, ShieldCheck, Beaker, LogOut
+  Moon, Sun, BarChart3, PiggyBank, Target, HeartHandshake, ShieldCheck, Beaker, LogOut, Settings
 } from "lucide-react";
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,10 @@ const businessNav = [
   { name: "Метод Давлатова",    href: "/davlatov",  icon: PiggyBank },
   { name: "Финансовые цели",    href: "/goals",     icon: Target },
   { name: "Песочница гипотез",  href: "/hypotheses", icon: Beaker },
+];
+
+const systemNav = [
+  { name: "Настройки",          href: "/settings",  icon: Settings },
 ];
 
 function AppSidebar() {
@@ -81,6 +85,16 @@ function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {businessNav.map(item => <NavItem key={item.href} item={item} />)}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup className="mt-2">
+          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+            Система
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {systemNav.map(item => <NavItem key={item.href} item={item} />)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
