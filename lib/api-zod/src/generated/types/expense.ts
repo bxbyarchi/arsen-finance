@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExpenseCategory } from './expenseCategory';
+import type { ExpenseEmotionalTrigger } from './expenseEmotionalTrigger';
 
 export interface Expense {
   id: number;
@@ -13,5 +14,8 @@ export interface Expense {
   name: string;
   amount: number;
   isEssential: boolean;
+  /** @nullable */
+  emotionalTrigger?: ExpenseEmotionalTrigger;
+  isImpulseBuy?: boolean;
   createdAt: string;
 }

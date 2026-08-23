@@ -288,9 +288,20 @@ export default function Expenses() {
                         </TableCell>
                         <TableCell>{expense.name}</TableCell>
                         <TableCell>
-                          {expense.isEssential
-                            ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-destructive/10 text-destructive">Обязательный</span>
-                            : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-muted text-muted-foreground">Необязательный</span>}
+                          <div className="flex flex-wrap gap-1">
+                            {expense.isEssential
+                              ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-destructive/10 text-destructive">Обязательный</span>
+                              : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-muted text-muted-foreground">Необязательный</span>}
+                            {expense.emotionalTrigger && expense.emotionalTrigger !== "routine" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-violet-500/10 text-violet-400">
+                                {expense.emotionalTrigger === "stress_buying" ? "Эмоциональная" :
+                                  expense.emotionalTrigger === "status_validation" ? "Статус" : "Удобство"}
+                              </span>
+                            )}
+                            {expense.isImpulseBuy && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-500/10 text-amber-500">Импульс</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-mono font-medium">{fmt(expense.amount)}</TableCell>
                         <TableCell>

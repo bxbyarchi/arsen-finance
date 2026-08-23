@@ -62,12 +62,28 @@ export const ExpenseCategory = {
   miscellaneous: 'miscellaneous',
 } as const;
 
+/**
+ * @nullable
+ */
+export type ExpenseEmotionalTrigger = typeof ExpenseEmotionalTrigger[keyof typeof ExpenseEmotionalTrigger] | null;
+
+
+export const ExpenseEmotionalTrigger = {
+  routine: 'routine',
+  stress_buying: 'stress_buying',
+  status_validation: 'status_validation',
+  burnout_convenience: 'burnout_convenience',
+} as const;
+
 export interface Expense {
   id: number;
   category: ExpenseCategory;
   name: string;
   amount: number;
   isEssential: boolean;
+  /** @nullable */
+  emotionalTrigger?: ExpenseEmotionalTrigger;
+  isImpulseBuy?: boolean;
   createdAt: string;
 }
 
@@ -83,11 +99,23 @@ export const ExpenseInputCategory = {
   miscellaneous: 'miscellaneous',
 } as const;
 
+export type ExpenseInputEmotionalTrigger = typeof ExpenseInputEmotionalTrigger[keyof typeof ExpenseInputEmotionalTrigger];
+
+
+export const ExpenseInputEmotionalTrigger = {
+  routine: 'routine',
+  stress_buying: 'stress_buying',
+  status_validation: 'status_validation',
+  burnout_convenience: 'burnout_convenience',
+} as const;
+
 export interface ExpenseInput {
   category: ExpenseInputCategory;
   name: string;
   amount: number;
   isEssential: boolean;
+  emotionalTrigger?: ExpenseInputEmotionalTrigger;
+  isImpulseBuy?: boolean;
 }
 
 export type BurnRateByCategoryItem = {
@@ -390,5 +418,223 @@ export interface SavingsGoalInput {
   targetAmount: number;
   targetMonths: number;
   currentAmount?: number;
+}
+
+export type TransactionClassificationInputCategory = typeof TransactionClassificationInputCategory[keyof typeof TransactionClassificationInputCategory];
+
+
+export const TransactionClassificationInputCategory = {
+  housing: 'housing',
+  food: 'food',
+  transport: 'transport',
+  utilities: 'utilities',
+  health: 'health',
+  miscellaneous: 'miscellaneous',
+} as const;
+
+export type TransactionClassificationInputEmotionalTrigger = typeof TransactionClassificationInputEmotionalTrigger[keyof typeof TransactionClassificationInputEmotionalTrigger];
+
+
+export const TransactionClassificationInputEmotionalTrigger = {
+  routine: 'routine',
+  stress_buying: 'stress_buying',
+  status_validation: 'status_validation',
+  burnout_convenience: 'burnout_convenience',
+} as const;
+
+export interface TransactionClassificationInput {
+  expenseId?: number;
+  category: TransactionClassificationInputCategory;
+  name: string;
+  amount: number;
+  isEssential: boolean;
+  emotionalTrigger?: TransactionClassificationInputEmotionalTrigger;
+  isImpulseBuy?: boolean;
+  merchant?: string;
+  note?: string;
+  occurredAt?: string;
+}
+
+export type TransactionClassificationResultEmotionalTrigger = typeof TransactionClassificationResultEmotionalTrigger[keyof typeof TransactionClassificationResultEmotionalTrigger];
+
+
+export const TransactionClassificationResultEmotionalTrigger = {
+  routine: 'routine',
+  stress_buying: 'stress_buying',
+  status_validation: 'status_validation',
+  burnout_convenience: 'burnout_convenience',
+} as const;
+
+export interface TransactionClassificationResult {
+  expense: Expense;
+  emotionalTrigger: TransactionClassificationResultEmotionalTrigger;
+  isImpulseBuy: boolean;
+  guidance: string;
+  message: string;
+}
+
+export type FinancialAutonomyProfileMoneyScriptType = typeof FinancialAutonomyProfileMoneyScriptType[keyof typeof FinancialAutonomyProfileMoneyScriptType];
+
+
+export const FinancialAutonomyProfileMoneyScriptType = {
+  avoidance: 'avoidance',
+  worship: 'worship',
+  status: 'status',
+  vigilance: 'vigilance',
+} as const;
+
+export interface FinancialAutonomyProfile {
+  userId: string;
+  moneyScriptType: FinancialAutonomyProfileMoneyScriptType;
+  riskToleranceIndex: number;
+  autonomyScore: number;
+  updatedAt: string;
+}
+
+export type FinancialAutonomyProfileUpdateMoneyScriptType = typeof FinancialAutonomyProfileUpdateMoneyScriptType[keyof typeof FinancialAutonomyProfileUpdateMoneyScriptType];
+
+
+export const FinancialAutonomyProfileUpdateMoneyScriptType = {
+  avoidance: 'avoidance',
+  worship: 'worship',
+  status: 'status',
+  vigilance: 'vigilance',
+} as const;
+
+export interface FinancialAutonomyProfileUpdate {
+  moneyScriptType?: FinancialAutonomyProfileUpdateMoneyScriptType;
+  riskToleranceIndex?: number;
+}
+
+export type VaultDocumentDocCategory = typeof VaultDocumentDocCategory[keyof typeof VaultDocumentDocCategory];
+
+
+export const VaultDocumentDocCategory = {
+  bank_account: 'bank_account',
+  tax_file: 'tax_file',
+  contract: 'contract',
+  emergency_plan: 'emergency_plan',
+} as const;
+
+export interface VaultDocument {
+  id: number;
+  docCategory: VaultDocumentDocCategory;
+  title: string;
+  /** @nullable */
+  lastVerifiedAt?: string | null;
+  createdAt: string;
+}
+
+export type VaultDocumentInputDocCategory = typeof VaultDocumentInputDocCategory[keyof typeof VaultDocumentInputDocCategory];
+
+
+export const VaultDocumentInputDocCategory = {
+  bank_account: 'bank_account',
+  tax_file: 'tax_file',
+  contract: 'contract',
+  emergency_plan: 'emergency_plan',
+} as const;
+
+export interface VaultDocumentInput {
+  docCategory: VaultDocumentInputDocCategory;
+  title: string;
+  /** Opaque encrypted payload or external secure reference. Never returned by the API. */
+  encryptedPayload: string;
+  lastVerifiedAt?: string;
+}
+
+export type VaultDocumentUpdateDocCategory = typeof VaultDocumentUpdateDocCategory[keyof typeof VaultDocumentUpdateDocCategory];
+
+
+export const VaultDocumentUpdateDocCategory = {
+  bank_account: 'bank_account',
+  tax_file: 'tax_file',
+  contract: 'contract',
+  emergency_plan: 'emergency_plan',
+} as const;
+
+export interface VaultDocumentUpdate {
+  docCategory?: VaultDocumentUpdateDocCategory;
+  title?: string;
+  encryptedPayload?: string;
+  /** @nullable */
+  lastVerifiedAt?: string | null;
+}
+
+export interface VaultCategoryStatus {
+  category: string;
+  present: boolean;
+  verified: boolean;
+  stale: boolean;
+  /** @nullable */
+  lastVerifiedAt: string | null;
+}
+
+export interface VaultSummary {
+  documents: VaultDocument[];
+  autonomyScore: number;
+  warnings: string[];
+  categoryStatus: VaultCategoryStatus[];
+}
+
+export type BusinessHypothesisStatus = typeof BusinessHypothesisStatus[keyof typeof BusinessHypothesisStatus];
+
+
+export const BusinessHypothesisStatus = {
+  learning_zone: 'learning_zone',
+  performance_zone: 'performance_zone',
+  archived: 'archived',
+} as const;
+
+export interface BusinessHypothesis {
+  id: number;
+  title: string;
+  status: BusinessHypothesisStatus;
+  projectedBudget: number;
+  actualRiskImpact: number;
+  /** @nullable */
+  keyLessons?: string | null;
+  createdAt: string;
+}
+
+export type BusinessHypothesisInputStatus = typeof BusinessHypothesisInputStatus[keyof typeof BusinessHypothesisInputStatus];
+
+
+export const BusinessHypothesisInputStatus = {
+  learning_zone: 'learning_zone',
+  performance_zone: 'performance_zone',
+  archived: 'archived',
+} as const;
+
+export interface BusinessHypothesisInput {
+  title: string;
+  status?: BusinessHypothesisInputStatus;
+  projectedBudget?: number;
+  actualRiskImpact?: number;
+  keyLessons?: string;
+}
+
+export type BusinessHypothesisUpdateStatus = typeof BusinessHypothesisUpdateStatus[keyof typeof BusinessHypothesisUpdateStatus];
+
+
+export const BusinessHypothesisUpdateStatus = {
+  learning_zone: 'learning_zone',
+  performance_zone: 'performance_zone',
+  archived: 'archived',
+} as const;
+
+export interface BusinessHypothesisUpdate {
+  title?: string;
+  status?: BusinessHypothesisUpdateStatus;
+  projectedBudget?: number;
+  actualRiskImpact?: number;
+  keyLessons?: string;
+}
+
+export interface HypothesisReflectionInput {
+  worked?: string;
+  failed?: string;
+  adjust?: string;
+  keyLessons?: string;
 }
 

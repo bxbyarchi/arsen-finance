@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Wallet, Receipt, TrendingUp, ShieldAlert, BrainCircuit,
-  Moon, Sun, BarChart3, PiggyBank, Target
+  Moon, Sun, BarChart3, PiggyBank, Target, HeartHandshake, ShieldCheck, Beaker
 } from "lucide-react";
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
@@ -20,12 +20,15 @@ const personalNav = [
   { name: "Доходы",             href: "/income",  icon: TrendingUp },
   { name: "Антикризисный режим", href: "/crisis",  icon: ShieldAlert },
   { name: "ИИ-Консультант",     href: "/ai",      icon: BrainCircuit },
+  { name: "Осознанные траты",    href: "/behavior", icon: HeartHandshake },
+  { name: "Финансовая автономия", href: "/autonomy", icon: ShieldCheck },
 ];
 
 const businessNav = [
   { name: "Проекты (P&L)",      href: "/projects",  icon: BarChart3 },
   { name: "Метод Давлатова",    href: "/davlatov",  icon: PiggyBank },
   { name: "Финансовые цели",    href: "/goals",     icon: Target },
+  { name: "Песочница гипотез",  href: "/hypotheses", icon: Beaker },
 ];
 
 function AppSidebar() {

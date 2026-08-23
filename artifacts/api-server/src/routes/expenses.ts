@@ -3,6 +3,39 @@ import { eq } from "drizzle-orm";
 import { db, expensesTable } from "@workspace/db";
 
 const router = Router();
+const CATEGORIES = ["housing", "food", "transport", "utilities", "health", "miscellaneous"] as const;
+const TRIGGERS = ["routine", "stress_buying", "status_validation", "burnout_convenience"] as const;
+type EmotionalTrigger = (typeof TRIGGERS)[number];
+type ExpenseInputBody = {
+  category: string;
+  name: string;
+  amount: number;
+  isEssential: boolean;
+  emotionalTrigger?: EmotionalTrigger | null;
+  isImpulseBuy?: boolean;
+};
+
+function isCategory(value: unknown): value is (typeof CATEGORIES)[number] {
+  return typeof value === "string" && CATEGORIES.includes(value as (typeof CATEGORIES)[number]);
+}
+
+function isTrigger(value: unknown): value is EmotionalTrigger {
+  return typeof value === "string" && TRIGGERS.includes(value as EmotionalTrigger);
+}
+
+function isNonNegativeAmount(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function isExpenseInput(body: Record<string, unknown>): body is ExpenseInputBody {
+  return isCategory(body.category)
+    && typeof body.name === "string"
+    && body.name.trim().length > 0
+    && isNonNegativeAmount(body.amount)
+    && typeof body.isEssential === "boolean"
+    && (body.emotionalTrigger === undefined || body.emotionalTrigger === null || isTrigger(body.emotionalTrigger))
+    && (body.isImpulseBuy === undefined || typeof body.isImpulseBuy === "boolean");
+}
 
 // GET /expenses
 router.get("/expenses", async (req, res) => {
@@ -12,12 +45,19 @@ router.get("/expenses", async (req, res) => {
 
 // POST /expenses
 router.post("/expenses", async (req, res) => {
-  const { category, name, amount, isEssential } = req.body;
+  const body = req.body as Record<string, unknown>;
+  if (!isExpenseInput(body)) {
+    res.status(400).json({ error: "Invalid expense input" });
+    return;
+  }
+  const { category, name, amount, isEssential, emotionalTrigger, isImpulseBuy } = body;
   const [expense] = await db.insert(expensesTable).values({
     category,
-    name,
-    amount: Number(amount),
-    isEssential: Boolean(isEssential),
+    name: name.trim(),
+    amount,
+    isEssential,
+    emotionalTrigger: emotionalTrigger ?? null,
+    isImpulseBuy: isImpulseBuy ?? false,
   }).returning();
   res.status(201).json(expense);
 });
@@ -25,9 +65,22 @@ router.post("/expenses", async (req, res) => {
 // PUT /expenses/:id
 router.put("/expenses/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const { category, name, amount, isEssential } = req.body;
+  const body = req.body as Record<string, unknown>;
+  if (!Number.isInteger(id) || id <= 0 || !isExpenseInput(body)) {
+    res.status(400).json({ error: "Invalid expense input" });
+    return;
+  }
+  const { category, name, amount, isEssential, emotionalTrigger, isImpulseBuy } = body;
+  const updates = {
+    category,
+    name: name.trim(),
+    amount,
+    isEssential,
+    ...(emotionalTrigger !== undefined ? { emotionalTrigger: emotionalTrigger ?? null } : {}),
+    ...(isImpulseBuy !== undefined ? { isImpulseBuy } : {}),
+  };
   const [expense] = await db.update(expensesTable)
-    .set({ category, name, amount: Number(amount), isEssential: Boolean(isEssential) })
+    .set(updates)
     .where(eq(expensesTable.id, id))
     .returning();
   if (!expense) { res.status(404).json({ error: "Expense not found" }); return; }

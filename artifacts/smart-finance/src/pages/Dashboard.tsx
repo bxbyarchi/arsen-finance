@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   TrendingUp, TrendingDown, Wallet, Receipt, ShieldAlert, Activity,
-  AlertTriangle, BrainCircuit, BarChart3, PiggyBank
+  AlertTriangle, BrainCircuit, BarChart3, PiggyBank, HeartHandshake, ShieldCheck, Beaker
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -225,6 +225,9 @@ export default function Dashboard() {
               { label: "Мои проекты", sub: "P&L по каждому бизнесу", href: "/projects", icon: BarChart3, cls: "bg-primary/10 text-primary" },
               { label: "Метод Давлатова", sub: "Распределить доход по фондам", href: "/davlatov", icon: PiggyBank, cls: "bg-amber-500/10 text-amber-500" },
               { label: "Финансовые цели", sub: "Отслеживай прогресс", href: "/goals", icon: Activity, cls: "bg-emerald-500/10 text-emerald-500" },
+               { label: "Осознанные траты", sub: "Контекст покупок без стыда", href: "/behavior", icon: HeartHandshake, cls: "bg-violet-500/10 text-violet-500" },
+               { label: "Финансовая автономия", sub: "Цифровой сейф и готовность", href: "/autonomy", icon: ShieldCheck, cls: "bg-emerald-500/10 text-emerald-500" },
+               { label: "Песочница гипотез", sub: "Учитесь на бизнес-экспериментах", href: "/hypotheses", icon: Beaker, cls: "bg-primary/10 text-primary" },
               { label: "ИИ-советник", sub: "Советы по улучшению бюджета", href: "/ai", icon: BrainCircuit, cls: "bg-violet-500/10 text-violet-500" },
             ].map(({ label, sub, href, icon: Icon, cls }) => (
               <Link key={href} href={href}>

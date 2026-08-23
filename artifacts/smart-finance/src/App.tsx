@@ -15,6 +15,9 @@ import Projects from '@/pages/Projects';
 import ProjectDetail from '@/pages/ProjectDetail';
 import Davlatov from '@/pages/Davlatov';
 import Goals from '@/pages/Goals';
+import Behavioral from '@/pages/Behavioral';
+import Autonomy from '@/pages/Autonomy';
+import Hypotheses from '@/pages/Hypotheses';
 
 const queryClient = new QueryClient();
 
@@ -32,6 +35,9 @@ function Router() {
         <Route path="/projects/:id" component={ProjectDetail} />
         <Route path="/davlatov" component={Davlatov} />
         <Route path="/goals" component={Goals} />
+        <Route path="/behavior" component={Behavioral} />
+        <Route path="/autonomy" component={Autonomy} />
+        <Route path="/hypotheses" component={Hypotheses} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

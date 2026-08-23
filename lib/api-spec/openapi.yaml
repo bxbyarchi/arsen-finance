@@ -30,6 +30,12 @@ tags:
     description: Davlatov wealth allocation engine
   - name: goals
     description: Savings goals and milestones
+  - name: behavioral
+    description: Behavioral spending insights
+  - name: resilience
+    description: Financial autonomy and digital vault
+  - name: hypotheses
+    description: Business learning sandbox
 
 paths:
   /healthz:
@@ -711,6 +717,240 @@ paths:
         "204":
           description: Deleted
 
+  # ─── Behavioral finance ──────────────────────────────────────
+  /transactions/classify:
+    post:
+      operationId: classifyTransaction
+      tags: [behavioral]
+      summary: Classify an expense by emotional trigger without shame
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionClassificationInput"
+      responses:
+        "201":
+          description: Classified expense and constructive guidance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionClassificationResult"
+
+  # ─── Financial resilience and vault ──────────────────────────
+  /financial-profile:
+    get:
+      operationId: getFinancialAutonomyProfile
+      tags: [resilience]
+      summary: Get money script, risk tolerance, and autonomy score
+      responses:
+        "200":
+          description: Financial autonomy profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialAutonomyProfile"
+    patch:
+      operationId: updateFinancialAutonomyProfile
+      tags: [resilience]
+      summary: Update money script and risk tolerance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinancialAutonomyProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialAutonomyProfile"
+
+  /vault:
+    get:
+      operationId: getVaultSummary
+      tags: [resilience]
+      summary: List document readiness and autonomy warnings
+      responses:
+        "200":
+          description: Redacted vault document list and readiness summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultSummary"
+    post:
+      operationId: createVaultDocument
+      tags: [resilience]
+      summary: Store a vault document's encrypted payload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultDocumentInput"
+      responses:
+        "201":
+          description: Created redacted vault document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultDocument"
+
+  /vault/{id}:
+    patch:
+      operationId: updateVaultDocument
+      tags: [resilience]
+      summary: Update vault metadata or encrypted payload
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultDocumentUpdate"
+      responses:
+        "200":
+          description: Updated redacted vault document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultDocument"
+    delete:
+      operationId: deleteVaultDocument
+      tags: [resilience]
+      summary: Delete a vault document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /vault/{id}/verify:
+    post:
+      operationId: verifyVaultDocument
+      tags: [resilience]
+      summary: Mark a vault document as verified today
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Verified redacted vault document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultDocument"
+
+  # ─── Hypotheses sandbox ──────────────────────────────────────
+  /hypotheses:
+    get:
+      operationId: listBusinessHypotheses
+      tags: [hypotheses]
+      summary: List business hypotheses
+      responses:
+        "200":
+          description: Hypothesis list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BusinessHypothesis"
+    post:
+      operationId: createBusinessHypothesis
+      tags: [hypotheses]
+      summary: Create a business hypothesis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessHypothesisInput"
+      responses:
+        "201":
+          description: Created hypothesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessHypothesis"
+
+  /hypotheses/{id}:
+    patch:
+      operationId: updateBusinessHypothesis
+      tags: [hypotheses]
+      summary: Update a business hypothesis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessHypothesisUpdate"
+      responses:
+        "200":
+          description: Updated hypothesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessHypothesis"
+    delete:
+      operationId: deleteBusinessHypothesis
+      tags: [hypotheses]
+      summary: Delete a business hypothesis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /hypotheses/{id}/reflection:
+    post:
+      operationId: reflectOnBusinessHypothesis
+      tags: [hypotheses]
+      summary: Archive a hypothesis with a Beyoncé Loop reflection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HypothesisReflectionInput"
+      responses:
+        "200":
+          description: Archived hypothesis with lessons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessHypothesis"
+
 components:
   schemas:
     HealthStatus:
@@ -816,6 +1056,11 @@ components:
           type: number
         isEssential:
           type: boolean
+        emotionalTrigger:
+          type: ["string", "null"]
+          enum: [routine, stress_buying, status_validation, burnout_convenience, null]
+        isImpulseBuy:
+          type: boolean
         createdAt:
           type: string
 
@@ -831,6 +1076,11 @@ components:
         amount:
           type: number
         isEssential:
+          type: boolean
+        emotionalTrigger:
+          type: string
+          enum: [routine, stress_buying, status_validation, burnout_convenience]
+        isImpulseBuy:
           type: boolean
 
     BurnRate:
@@ -1317,3 +1567,215 @@ components:
           type: number
         currentAmount:
           type: number
+
+    # ─── Behavioral finance ───────────────────────────────────
+    TransactionClassificationInput:
+      type: object
+      required: [category, name, amount, isEssential]
+      properties:
+        expenseId:
+          type: number
+        category:
+          type: string
+          enum: [housing, food, transport, utilities, health, miscellaneous]
+        name:
+          type: string
+        amount:
+          type: number
+        isEssential:
+          type: boolean
+        emotionalTrigger:
+          type: string
+          enum: [routine, stress_buying, status_validation, burnout_convenience]
+        isImpulseBuy:
+          type: boolean
+        merchant:
+          type: string
+        note:
+          type: string
+        occurredAt:
+          type: string
+
+    TransactionClassificationResult:
+      type: object
+      required: [expense, emotionalTrigger, isImpulseBuy, guidance, message]
+      properties:
+        expense:
+          $ref: "#/components/schemas/Expense"
+        emotionalTrigger:
+          type: string
+          enum: [routine, stress_buying, status_validation, burnout_convenience]
+        isImpulseBuy:
+          type: boolean
+        guidance:
+          type: string
+        message:
+          type: string
+
+    # ─── Financial resilience and vault ───────────────────────
+    FinancialAutonomyProfile:
+      type: object
+      required: [userId, moneyScriptType, riskToleranceIndex, autonomyScore, updatedAt]
+      properties:
+        userId:
+          type: string
+        moneyScriptType:
+          type: string
+          enum: [avoidance, worship, status, vigilance]
+        riskToleranceIndex:
+          type: number
+        autonomyScore:
+          type: number
+        updatedAt:
+          type: string
+
+    FinancialAutonomyProfileUpdate:
+      type: object
+      properties:
+        moneyScriptType:
+          type: string
+          enum: [avoidance, worship, status, vigilance]
+        riskToleranceIndex:
+          type: number
+
+    VaultDocument:
+      type: object
+      required: [id, docCategory, title, createdAt]
+      properties:
+        id:
+          type: number
+        docCategory:
+          type: string
+          enum: [bank_account, tax_file, contract, emergency_plan]
+        title:
+          type: string
+        lastVerifiedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    VaultDocumentInput:
+      type: object
+      required: [docCategory, title, encryptedPayload]
+      properties:
+        docCategory:
+          type: string
+          enum: [bank_account, tax_file, contract, emergency_plan]
+        title:
+          type: string
+        encryptedPayload:
+          type: string
+          description: Opaque encrypted payload or external secure reference. Never returned by the API.
+        lastVerifiedAt:
+          type: string
+
+    VaultDocumentUpdate:
+      type: object
+      properties:
+        docCategory:
+          type: string
+          enum: [bank_account, tax_file, contract, emergency_plan]
+        title:
+          type: string
+        encryptedPayload:
+          type: string
+        lastVerifiedAt:
+          type: ["string", "null"]
+
+    VaultCategoryStatus:
+      type: object
+      required: [category, present, verified, stale, lastVerifiedAt]
+      properties:
+        category:
+          type: string
+        present:
+          type: boolean
+        verified:
+          type: boolean
+        stale:
+          type: boolean
+        lastVerifiedAt:
+          type: ["string", "null"]
+
+    VaultSummary:
+      type: object
+      required: [documents, autonomyScore, warnings, categoryStatus]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/VaultDocument"
+        autonomyScore:
+          type: number
+        warnings:
+          type: array
+          items:
+            type: string
+        categoryStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/VaultCategoryStatus"
+
+    # ─── Hypotheses sandbox ───────────────────────────────────
+    BusinessHypothesis:
+      type: object
+      required: [id, title, status, projectedBudget, actualRiskImpact, createdAt]
+      properties:
+        id:
+          type: number
+        title:
+          type: string
+        status:
+          type: string
+          enum: [learning_zone, performance_zone, archived]
+        projectedBudget:
+          type: number
+        actualRiskImpact:
+          type: number
+        keyLessons:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    BusinessHypothesisInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        status:
+          type: string
+          enum: [learning_zone, performance_zone, archived]
+        projectedBudget:
+          type: number
+        actualRiskImpact:
+          type: number
+        keyLessons:
+          type: string
+
+    BusinessHypothesisUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        status:
+          type: string
+          enum: [learning_zone, performance_zone, archived]
+        projectedBudget:
+          type: number
+        actualRiskImpact:
+          type: number
+        keyLessons:
+          type: string
+
+    HypothesisReflectionInput:
+      type: object
+      properties:
+        worked:
+          type: string
+        failed:
+          type: string
+        adjust:
+          type: string
+        keyLessons:
+          type: string

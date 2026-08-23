@@ -149,6 +149,8 @@ export const ListExpensesResponseItem = zod.object({
   "name": zod.string(),
   "amount": zod.number(),
   "isEssential": zod.boolean(),
+  "emotionalTrigger": zod.union([zod.literal('routine'),zod.literal('stress_buying'),zod.literal('status_validation'),zod.literal('burnout_convenience'),zod.literal(null)]).nullish(),
+  "isImpulseBuy": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 export const ListExpensesResponse = zod.array(ListExpensesResponseItem)
@@ -161,7 +163,9 @@ export const CreateExpenseBody = zod.object({
   "category": zod.enum(['housing', 'food', 'transport', 'utilities', 'health', 'miscellaneous']),
   "name": zod.string(),
   "amount": zod.number(),
-  "isEssential": zod.boolean()
+  "isEssential": zod.boolean(),
+  "emotionalTrigger": zod.enum(['routine', 'stress_buying', 'status_validation', 'burnout_convenience']).optional(),
+  "isImpulseBuy": zod.boolean().optional()
 })
 
 export const CreateExpenseResponse = zod.object({
@@ -170,6 +174,8 @@ export const CreateExpenseResponse = zod.object({
   "name": zod.string(),
   "amount": zod.number(),
   "isEssential": zod.boolean(),
+  "emotionalTrigger": zod.union([zod.literal('routine'),zod.literal('stress_buying'),zod.literal('status_validation'),zod.literal('burnout_convenience'),zod.literal(null)]).nullish(),
+  "isImpulseBuy": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 
@@ -185,7 +191,9 @@ export const UpdateExpenseBody = zod.object({
   "category": zod.enum(['housing', 'food', 'transport', 'utilities', 'health', 'miscellaneous']),
   "name": zod.string(),
   "amount": zod.number(),
-  "isEssential": zod.boolean()
+  "isEssential": zod.boolean(),
+  "emotionalTrigger": zod.enum(['routine', 'stress_buying', 'status_validation', 'burnout_convenience']).optional(),
+  "isImpulseBuy": zod.boolean().optional()
 })
 
 export const UpdateExpenseResponse = zod.object({
@@ -194,6 +202,8 @@ export const UpdateExpenseResponse = zod.object({
   "name": zod.string(),
   "amount": zod.number(),
   "isEssential": zod.boolean(),
+  "emotionalTrigger": zod.union([zod.literal('routine'),zod.literal('stress_buying'),zod.literal('status_validation'),zod.literal('burnout_convenience'),zod.literal(null)]).nullish(),
+  "isImpulseBuy": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 
@@ -397,6 +407,8 @@ export const GetCrisisSimulationResponse = zod.object({
   "name": zod.string(),
   "amount": zod.number(),
   "isEssential": zod.boolean(),
+  "emotionalTrigger": zod.union([zod.literal('routine'),zod.literal('stress_buying'),zod.literal('status_validation'),zod.literal('burnout_convenience'),zod.literal(null)]).nullish(),
+  "isImpulseBuy": zod.boolean().optional(),
   "createdAt": zod.string()
 }))
 })
@@ -778,5 +790,257 @@ export const DeleteGoalParams = zod.object({
 })
 
 export const DeleteGoalResponse = zod.void()
+
+
+/**
+ * @summary Classify an expense by emotional trigger without shame
+ */
+export const ClassifyTransactionBody = zod.object({
+  "expenseId": zod.number().optional(),
+  "category": zod.enum(['housing', 'food', 'transport', 'utilities', 'health', 'miscellaneous']),
+  "name": zod.string(),
+  "amount": zod.number(),
+  "isEssential": zod.boolean(),
+  "emotionalTrigger": zod.enum(['routine', 'stress_buying', 'status_validation', 'burnout_convenience']).optional(),
+  "isImpulseBuy": zod.boolean().optional(),
+  "merchant": zod.string().optional(),
+  "note": zod.string().optional(),
+  "occurredAt": zod.string().optional()
+})
+
+export const ClassifyTransactionResponse = zod.object({
+  "expense": zod.object({
+  "id": zod.number(),
+  "category": zod.enum(['housing', 'food', 'transport', 'utilities', 'health', 'miscellaneous']),
+  "name": zod.string(),
+  "amount": zod.number(),
+  "isEssential": zod.boolean(),
+  "emotionalTrigger": zod.union([zod.literal('routine'),zod.literal('stress_buying'),zod.literal('status_validation'),zod.literal('burnout_convenience'),zod.literal(null)]).nullish(),
+  "isImpulseBuy": zod.boolean().optional(),
+  "createdAt": zod.string()
+}),
+  "emotionalTrigger": zod.enum(['routine', 'stress_buying', 'status_validation', 'burnout_convenience']),
+  "isImpulseBuy": zod.boolean(),
+  "guidance": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get money script, risk tolerance, and autonomy score
+ */
+export const GetFinancialAutonomyProfileResponse = zod.object({
+  "userId": zod.string(),
+  "moneyScriptType": zod.enum(['avoidance', 'worship', 'status', 'vigilance']),
+  "riskToleranceIndex": zod.number(),
+  "autonomyScore": zod.number(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update money script and risk tolerance
+ */
+export const UpdateFinancialAutonomyProfileBody = zod.object({
+  "moneyScriptType": zod.enum(['avoidance', 'worship', 'status', 'vigilance']).optional(),
+  "riskToleranceIndex": zod.number().optional()
+})
+
+export const UpdateFinancialAutonomyProfileResponse = zod.object({
+  "userId": zod.string(),
+  "moneyScriptType": zod.enum(['avoidance', 'worship', 'status', 'vigilance']),
+  "riskToleranceIndex": zod.number(),
+  "autonomyScore": zod.number(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary List document readiness and autonomy warnings
+ */
+export const GetVaultSummaryResponse = zod.object({
+  "documents": zod.array(zod.object({
+  "id": zod.number(),
+  "docCategory": zod.enum(['bank_account', 'tax_file', 'contract', 'emergency_plan']),
+  "title": zod.string(),
+  "lastVerifiedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})),
+  "autonomyScore": zod.number(),
+  "warnings": zod.array(zod.string()),
+  "categoryStatus": zod.array(zod.object({
+  "category": zod.string(),
+  "present": zod.boolean(),
+  "verified": zod.boolean(),
+  "stale": zod.boolean(),
+  "lastVerifiedAt": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Store a vault document's encrypted payload
+ */
+export const CreateVaultDocumentBody = zod.object({
+  "docCategory": zod.enum(['bank_account', 'tax_file', 'contract', 'emergency_plan']),
+  "title": zod.string(),
+  "encryptedPayload": zod.string().describe('Opaque encrypted payload or external secure reference. Never returned by the API.'),
+  "lastVerifiedAt": zod.string().optional()
+})
+
+export const CreateVaultDocumentResponse = zod.object({
+  "id": zod.number(),
+  "docCategory": zod.enum(['bank_account', 'tax_file', 'contract', 'emergency_plan']),
+  "title": zod.string(),
+  "lastVerifiedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update vault metadata or encrypted payload
+ */
+export const UpdateVaultDocumentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateVaultDocumentBody = zod.object({
+  "docCategory": zod.enum(['bank_account', 'tax_file', 'contract', 'emergency_plan']).optional(),
+  "title": zod.string().optional(),
+  "encryptedPayload": zod.string().optional(),
+  "lastVerifiedAt": zod.string().nullish()
+})
+
+export const UpdateVaultDocumentResponse = zod.object({
+  "id": zod.number(),
+  "docCategory": zod.enum(['bank_account', 'tax_file', 'contract', 'emergency_plan']),
+  "title": zod.string(),
+  "lastVerifiedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a vault document
+ */
+export const DeleteVaultDocumentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteVaultDocumentResponse = zod.void()
+
+
+/**
+ * @summary Mark a vault document as verified today
+ */
+export const VerifyVaultDocumentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const VerifyVaultDocumentResponse = zod.object({
+  "id": zod.number(),
+  "docCategory": zod.enum(['bank_account', 'tax_file', 'contract', 'emergency_plan']),
+  "title": zod.string(),
+  "lastVerifiedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary List business hypotheses
+ */
+export const ListBusinessHypothesesResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['learning_zone', 'performance_zone', 'archived']),
+  "projectedBudget": zod.number(),
+  "actualRiskImpact": zod.number(),
+  "keyLessons": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListBusinessHypothesesResponse = zod.array(ListBusinessHypothesesResponseItem)
+
+
+/**
+ * @summary Create a business hypothesis
+ */
+export const CreateBusinessHypothesisBody = zod.object({
+  "title": zod.string(),
+  "status": zod.enum(['learning_zone', 'performance_zone', 'archived']).optional(),
+  "projectedBudget": zod.number().optional(),
+  "actualRiskImpact": zod.number().optional(),
+  "keyLessons": zod.string().optional()
+})
+
+export const CreateBusinessHypothesisResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['learning_zone', 'performance_zone', 'archived']),
+  "projectedBudget": zod.number(),
+  "actualRiskImpact": zod.number(),
+  "keyLessons": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a business hypothesis
+ */
+export const UpdateBusinessHypothesisParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateBusinessHypothesisBody = zod.object({
+  "title": zod.string().optional(),
+  "status": zod.enum(['learning_zone', 'performance_zone', 'archived']).optional(),
+  "projectedBudget": zod.number().optional(),
+  "actualRiskImpact": zod.number().optional(),
+  "keyLessons": zod.string().optional()
+})
+
+export const UpdateBusinessHypothesisResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['learning_zone', 'performance_zone', 'archived']),
+  "projectedBudget": zod.number(),
+  "actualRiskImpact": zod.number(),
+  "keyLessons": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a business hypothesis
+ */
+export const DeleteBusinessHypothesisParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteBusinessHypothesisResponse = zod.void()
+
+
+/**
+ * @summary Archive a hypothesis with a Beyoncé Loop reflection
+ */
+export const ReflectOnBusinessHypothesisParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReflectOnBusinessHypothesisBody = zod.object({
+  "worked": zod.string().optional(),
+  "failed": zod.string().optional(),
+  "adjust": zod.string().optional(),
+  "keyLessons": zod.string().optional()
+})
+
+export const ReflectOnBusinessHypothesisResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['learning_zone', 'performance_zone', 'archived']),
+  "projectedBudget": zod.number(),
+  "actualRiskImpact": zod.number(),
+  "keyLessons": zod.string().nullish(),
+  "createdAt": zod.string()
+})
 
 

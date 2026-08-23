@@ -8,6 +8,9 @@ import aiRouter from "./ai";
 import projectsRouter from "./projects";
 import davlatovRouter from "./davlatov";
 import goalsRouter from "./goals";
+import behavioralRouter from "./behavioral";
+import financialResilienceRouter from "./financial-resilience";
+import hypothesesRouter from "./hypotheses";
 
 const router: IRouter = Router();
 
@@ -20,5 +23,8 @@ router.use(aiRouter);
 router.use(projectsRouter);
 router.use(davlatovRouter);
 router.use(goalsRouter);
+router.use(behavioralRouter);
+router.use(financialResilienceRouter);
+router.use(hypothesesRouter);
 
 export default router;

@@ -6,10 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExpenseInputCategory } from './expenseInputCategory';
+import type { ExpenseInputEmotionalTrigger } from './expenseInputEmotionalTrigger';
 
 export interface ExpenseInput {
   category: ExpenseInputCategory;
   name: string;
   amount: number;
   isEssential: boolean;
+  emotionalTrigger?: ExpenseInputEmotionalTrigger;
+  isImpulseBuy?: boolean;
 }
