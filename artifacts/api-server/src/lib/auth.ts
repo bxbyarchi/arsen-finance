@@ -1,8 +1,7 @@
 import crypto from "crypto";
-import { db, sessionsTable } from "@workspace/db";
+import { db, sessionsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import type { Request, Response } from "express";
-import * as client from "openid-client";
 
 export interface AuthUser {
   id: string;
@@ -19,17 +18,43 @@ export interface SessionData {
   expiresAt?: number;
 }
 
-export const ISSUER_URL = process.env.ISSUER_URL ?? "https://replit.com/oidc";
 export const SESSION_COOKIE = "sid";
 export const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 
-let oidcConfig: client.Configuration | null = null;
+export async function getLocalUser(): Promise<AuthUser> {
+  const id = process.env.ARSEN_USER_ID ?? "arsen-admin";
+  const email = process.env.ARSEN_USER_EMAIL ?? "admin@arsen.local";
+  const firstName = process.env.ARSEN_USER_FIRST_NAME ?? "Арсен";
+  const lastName = process.env.ARSEN_USER_LAST_NAME ?? null;
 
-export async function getOidcConfig(): Promise<client.Configuration> {
-  if (!oidcConfig) {
-    oidcConfig = await client.discovery(new URL(ISSUER_URL), process.env.REPL_ID!);
-  }
-  return oidcConfig;
+  const values = {
+    id,
+    email,
+    firstName,
+    lastName,
+    profileImageUrl: null,
+  };
+
+  const [user] = await db.insert(usersTable).values(values)
+    .onConflictDoUpdate({ target: usersTable.id, set: { ...values, updatedAt: new Date() } })
+    .returning();
+
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    profileImageUrl: user.profileImageUrl,
+  };
+}
+
+export function verifyLocalPassword(password: unknown): boolean {
+  const expected = process.env.ARSEN_AUTH_PASSWORD;
+  if (typeof password !== "string" || !expected) return false;
+  const actualBuffer = Buffer.from(password);
+  const expectedBuffer = Buffer.from(expected);
+  if (actualBuffer.length !== expectedBuffer.length) return false;
+  return crypto.timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
 export async function createSession(data: SessionData): Promise<string> {
@@ -49,12 +74,6 @@ export async function getSession(sid: string): Promise<SessionData | null> {
     return null;
   }
   return row.sess as unknown as SessionData;
-}
-
-export async function updateSession(sid: string, data: SessionData): Promise<void> {
-  await db.update(sessionsTable)
-    .set({ sess: data as unknown as Record<string, unknown>, expire: new Date(Date.now() + SESSION_TTL) })
-    .where(eq(sessionsTable.sid, sid));
 }
 
 export async function deleteSession(sid: string): Promise<void> {
