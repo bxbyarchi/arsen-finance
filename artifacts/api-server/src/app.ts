@@ -38,7 +38,7 @@ app.use("/api", router);
 // Keep /api routes above this static middleware so API endpoints are unaffected.
 const frontendDist = path.resolve(process.cwd(), "artifacts/smart-finance/dist");
 app.use(express.static(frontendDist));
-app.get("*", (_req, res) => {
+app.get("/{*splat}", (_req, res) => {
   res.sendFile(path.join(frontendDist, "index.html"));
 });
 
