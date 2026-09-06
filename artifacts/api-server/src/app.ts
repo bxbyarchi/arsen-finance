@@ -34,9 +34,12 @@ app.use(authMiddleware);
 
 app.use("/api", router);
 
-// The Render service hosts both the API and the Vite-built web app.
-// Keep /api routes above this static middleware so API endpoints are unaffected.
-const frontendDist = path.resolve(process.cwd(), "artifacts/smart-finance/dist");
+// The Vite app is built into artifacts/smart-finance/dist/public.
+// Keep /api routes above the static middleware so API endpoints are unaffected.
+const frontendDist = path.resolve(
+  process.cwd(),
+  "artifacts/smart-finance/dist/public",
+);
 app.use(express.static(frontendDist));
 app.get("/{*splat}", (_req, res) => {
   res.sendFile(path.join(frontendDist, "index.html"));
