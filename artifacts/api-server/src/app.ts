@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import path from "node:path";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -32,5 +33,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(authMiddleware);
 
 app.use("/api", router);
+
+// The Render service hosts both the API and the Vite-built web app.
+// Keep /api routes above this static middleware so API endpoints are unaffected.
+const frontendDist = path.resolve(process.cwd(), "artifacts/smart-finance/dist");
+app.use(express.static(frontendDist));
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(frontendDist, "index.html"));
+});
 
 export default app;
