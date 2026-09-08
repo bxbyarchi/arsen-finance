@@ -12,6 +12,7 @@ export interface ExpenseInput {
   category: ExpenseInputCategory;
   name: string;
   amount: number;
+  frequency: 'daily' | 'monthly';
   isEssential: boolean;
   emotionalTrigger?: ExpenseInputEmotionalTrigger;
   isImpulseBuy?: boolean;
