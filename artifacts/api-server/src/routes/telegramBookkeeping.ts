@@ -7,6 +7,7 @@ type ExpenseCategory = "food" | "transport" | "housing" | "utilities" | "health"
 const router = Router();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
 const API_BASE = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : null;
 const LABELS: Record<string, string> = { food: "Питание", transport: "Транспорт", housing: "Жильё", utilities: "Коммунальные / связь", health: "Здоровье", miscellaneous: "Разное", debt: "Платёж по долгу", income: "Доход" };
 const KEYWORDS: Record<string, ExpenseCategory> = { еда: "food", питание: "food", продукты: "food", ресторан: "food", кафе: "food", такси: "transport", транспорт: "transport", бензин: "transport", аренда: "housing", квартира: "housing", жилье: "housing", жильё: "housing", коммуналка: "utilities", интернет: "utilities", связь: "utilities", телефон: "utilities", здоровье: "health", аптека: "health", лекарства: "health" };
@@ -36,5 +37,5 @@ export async function processTelegramBookkeepingUpdate(update: any) {
   const category = categoryFrom(text); const name = text.replace(/\d+(?:[.,]\d+)?/g, "").trim(); const balance = await spend(ownerId, amount, category, name || LABELS[category]); await reply(chatId, `✅ Расход занесён\n${LABELS[category]}: -${fmt(amount)}\nБаланс: ${fmt(balance)}`);
 }
 
-router.post("/telegram/bookkeeping-webhook", async (req, res) => { try { await processTelegramBookkeepingUpdate(req.body); res.json({ ok: true }); } catch (error) { console.error("[telegram-bookkeeping]", error); const chatId = req.body?.message?.chat?.id; if (chatId) { try { await reply(String(chatId), `⚠️ ${error instanceof Error ? error.message : "Не удалось обработать операцию."}`); } catch {} } res.json({ ok: true }); } });
+router.post("/telegram/bookkeeping-webhook", async (req, res) => { try { if (WEBHOOK_SECRET && req.header("x-telegram-bot-api-secret-token") !== WEBHOOK_SECRET) { res.status(401).json({ error: "Invalid Telegram webhook secret" }); return; } await processTelegramBookkeepingUpdate(req.body); res.json({ ok: true }); } catch (error) { console.error("[telegram-bookkeeping]", error); const chatId = req.body?.message?.chat?.id; if (chatId) { try { await reply(String(chatId), `⚠️ ${error instanceof Error ? error.message : "Не удалось обработать операцию."}`); } catch {} } res.json({ ok: true }); } });
 export default router;
