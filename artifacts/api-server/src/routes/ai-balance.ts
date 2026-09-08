@@ -5,9 +5,10 @@ import { db, profileTable, debtsTable, expensesTable, incomesTable, savingsGoals
 
 const router = Router();
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
+const monthlyAmount = (expense: any) => expense.frequency === "daily" ? expense.amount * 30 : expense.amount;
 
 function buildFallback(balance: number, debts: any[], expenses: any[], goals: any[]) {
-  const essential = expenses.filter(e => e.isEssential).reduce((s, e) => s + e.amount, 0);
+  const essential = expenses.filter(e => e.isEssential).reduce((s, e) => s + monthlyAmount(e), 0);
   const minimumDebt = debts.reduce((s, d) => s + d.monthlyPayment, 0);
   const reserveTarget = (essential + minimumDebt) * 2;
   const reserve = Math.min(balance, Math.max(0, reserveTarget));
@@ -60,10 +61,11 @@ router.get("/ai/balance-distribution", async (req, res) => {
   ]);
   const balance = profiles[0]?.currentBalance ?? 0;
   const fallback = buildFallback(balance, debts, expenses, goals);
+  const essentialMonthly = expenses.filter(e => e.isEssential).reduce((s, e) => s + monthlyAmount(e), 0);
 
   if (!process.env.GEMINI_API_KEY) { res.json({ balance, ...fallback, source: "rule-based" }); return; }
 
-  const prompt = `Ты — финансовый ИИ. Распредели текущий баланс пользователя в сомах. Не выдумывай данные. Баланс: ${balance}. Обязательные расходы/мес: ${expenses.filter(e => e.isEssential).reduce((s, e) => s + e.amount, 0)}. Минимальные платежи по долгам/мес: ${debts.reduce((s, d) => s + d.monthlyPayment, 0)}. Долги: ${debts.map(d => `${d.id}:${d.creditorName}, остаток ${d.totalDebt}, платёж ${d.monthlyPayment}, ставка ${d.interestRate}%`).join("; ") || "нет"}. Цели: ${goals.map(g => `${g.id}:${g.title}, осталось ${Math.max(0, g.targetAmount - g.currentAmount)}, срок ${g.targetMonths} мес.`).join("; ") || "нет"}. Доходы: ${incomes.map(i => `${i.source}: ${i.actualAmount ?? 0}`).join("; ") || "нет"}. Верни только JSON: {"reserve":число,"debts":[{"creditorName":строка,"amount":число}],"goals":число,"goalAllocations":[{"goalId":число,"title":строка,"amount":число,"reason":строка}],"free":число,"reason":строка}. Сумма reserve + все debt amount + goals + free <= balance. goals должна равняться сумме goalAllocations. Не отрицательные числа. Резерв 1-2 месяца обязательных расходов и платежей, затем обязательные минимальные платежи, затем приоритетные цели по сроку, затем дорогой долг/свободный остаток.`;
+  const prompt = `Ты — финансовый ИИ. Распредели текущий баланс пользователя в сомах. Не выдумывай данные. Баланс: ${balance}. Обязательные расходы/мес: ${essentialMonthly}. Минимальные платежи по долгам/мес: ${debts.reduce((s, d) => s + d.monthlyPayment, 0)}. Долги: ${debts.map(d => `${d.id}:${d.creditorName}, остаток ${d.totalDebt}, платёж ${d.monthlyPayment}, ставка ${d.interestRate}%`).join("; ") || "нет"}. Цели: ${goals.map(g => `${g.id}:${g.title}, осталось ${Math.max(0, g.targetAmount - g.currentAmount)}, срок ${g.targetMonths} мес.`).join("; ") || "нет"}. Доходы: ${incomes.map(i => `${i.source}: ${i.actualAmount ?? 0}`).join("; ") || "нет"}. Верни только JSON: {"reserve":число,"debts":[{"creditorName":строка,"amount":число}],"goals":число,"goalAllocations":[{"goalId":число,"title":строка,"amount":число,"reason":строка}],"free":число,"reason":строка}. Сумма reserve + все debt amount + goals + free <= balance. goals должна равняться сумме goalAllocations. Не отрицательные числа. Резерв 1-2 месяца обязательных расходов и платежей, затем обязательные минимальные платежи, затем приоритетные цели по сроку, затем дорогой долг/свободный остаток.`;
 
   try {
     const response = await genai.models.generateContent({ model: "gemini-2.0-flash", contents: prompt, config: { temperature: 0.2, responseMimeType: "application/json" } });
