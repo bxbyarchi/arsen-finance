@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import debtsRouter from "./debts";
+import balanceRouter from "./balance";
 import expensesRouter from "./expenses";
 import incomesRouter from "./incomes";
 import profileRouter from "./profile";
@@ -26,6 +27,7 @@ router.use((_req, res, next) => {
   res.setHeader("Cache-Control", "private, no-store");
   next();
 });
+router.use(balanceRouter);
 router.use(debtsRouter);
 router.use(expensesRouter);
 router.use(incomesRouter);
