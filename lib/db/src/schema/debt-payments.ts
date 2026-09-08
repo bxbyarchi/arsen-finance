@@ -1,4 +1,4 @@
-import { pgTable, serial, text, real, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, real, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./auth";
@@ -6,7 +6,7 @@ import { debtsTable } from "./debts";
 
 export const debtPaymentsTable = pgTable("debt_payments", {
   id: serial("id").primaryKey(),
-  debtId: serial("debt_id").references(() => debtsTable.id, { onDelete: "cascade" }).notNull(),
+  debtId: integer("debt_id").references(() => debtsTable.id, { onDelete: "cascade" }).notNull(),
   ownerId: text("owner_id").references(() => usersTable.id, { onDelete: "cascade" }).notNull(),
   amount: real("amount").notNull(),
   principalPaid: real("principal_paid").notNull(),
