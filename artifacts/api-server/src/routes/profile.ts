@@ -1,19 +1,9 @@
 import { Router } from "express";
 import { and, desc, eq, gte } from "drizzle-orm";
-import {
-  db,
-  profileTable,
-  debtsTable,
-  expensesTable,
-  incomesTable,
-  projectEntriesTable,
-  balanceTransactionsTable,
-} from "@workspace/db";
+import { db, profileTable, debtsTable, expensesTable, incomesTable, projectEntriesTable, balanceTransactionsTable } from "@workspace/db";
 
 const router = Router();
-
-const fmtSom = (val: number) =>
-  new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(val)) + " сом";
+const fmtSom = (val: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(val)) + " сом";
 const monthlyExpenseAmount = (expense: any) => expense.frequency === "daily" ? expense.amount * 30 : expense.amount;
 
 async function ensureProfile(ownerId: string) {
@@ -25,35 +15,20 @@ async function ensureProfile(ownerId: string) {
   return profiles[0];
 }
 
-// GET /profile
-router.get("/profile", async (req, res) => {
-  const profile = await ensureProfile(req.user!.id);
-  res.json(profile);
-});
-
-// PATCH /profile
+router.get("/profile", async (req, res) => res.json(await ensureProfile(req.user!.id)));
 router.patch("/profile", async (req, res) => {
   const profile = await ensureProfile(req.user!.id);
   const updates: Partial<{ currentSavings: number; crisisMode: boolean }> = {};
   if (req.body.currentSavings !== undefined) updates.currentSavings = Number(req.body.currentSavings);
   if (req.body.crisisMode !== undefined) updates.crisisMode = Boolean(req.body.crisisMode);
-  const [updated] = await db.update(profileTable)
-    .set({ ...updates, updatedAt: new Date() })
-    .where(eq(profileTable.id, profile.id))
-    .returning();
+  const [updated] = await db.update(profileTable).set({ ...updates, updatedAt: new Date() }).where(eq(profileTable.id, profile.id)).returning();
   res.json(updated);
 });
 
-// GET /dashboard/summary — planning view, now anchored to the real current balance.
 router.get("/dashboard/summary", async (req, res) => {
   const [profile, debts, expenses, incomes, projectEntries] = await Promise.all([
-    ensureProfile(req.user!.id),
-    db.select().from(debtsTable).where(eq(debtsTable.ownerId, req.user!.id)),
-    db.select().from(expensesTable).where(eq(expensesTable.ownerId, req.user!.id)),
-    db.select().from(incomesTable).where(eq(incomesTable.ownerId, req.user!.id)),
-    db.select().from(projectEntriesTable).where(eq(projectEntriesTable.ownerId, req.user!.id)).orderBy(projectEntriesTable.month),
+    ensureProfile(req.user!.id), db.select().from(debtsTable).where(eq(debtsTable.ownerId, req.user!.id)), db.select().from(expensesTable).where(eq(expensesTable.ownerId, req.user!.id)), db.select().from(incomesTable).where(eq(incomesTable.ownerId, req.user!.id)), db.select().from(projectEntriesTable).where(eq(projectEntriesTable.ownerId, req.user!.id)).orderBy(projectEntriesTable.month),
   ]);
-
   const totalDebt = debts.reduce((s, d) => s + d.totalDebt, 0);
   const totalMonthlyDebtPayment = debts.reduce((s, d) => s + d.monthlyPayment, 0);
   const totalMonthlyExpenses = expenses.reduce((s, e) => s + monthlyExpenseAmount(e), 0);
@@ -62,187 +37,50 @@ router.get("/dashboard/summary", async (req, res) => {
   const totalBurn = totalMonthlyExpenses + totalMonthlyDebtPayment;
   const netMonthlyCashFlow = totalMonthlyIncome - totalBurn;
   const financialRunwayMonths = totalBurn > 0 ? profile.currentBalance / totalBurn : 999;
-
-  let totalProjectRevenue = 0;
-  let totalProjectNetProfit = 0;
-  let totalProjectDividends = 0;
+  let totalProjectRevenue = 0, totalProjectNetProfit = 0, totalProjectDividends = 0;
   const monthMap = new Map<string, { month: string; revenue: number; expenses: number; reinvestments: number; dividends: number; netProfit: number }>();
-
   for (const e of projectEntries) {
     const grossProfit = e.grossRevenue - e.directCosts;
     const totalOpex = e.marketingExpense + e.salaryExpense + e.rentExpense + e.logisticsExpense + e.utilitiesExpense;
     const netProfit = grossProfit - totalOpex;
-    totalProjectRevenue += e.grossRevenue;
-    totalProjectNetProfit += netProfit;
-    totalProjectDividends += e.dividends;
+    totalProjectRevenue += e.grossRevenue; totalProjectNetProfit += netProfit; totalProjectDividends += e.dividends;
     const mb = monthMap.get(e.month) ?? { month: e.month, revenue: 0, expenses: 0, reinvestments: 0, dividends: 0, netProfit: 0 };
-    mb.revenue += e.grossRevenue;
-    mb.expenses += totalOpex + e.directCosts;
-    mb.reinvestments += e.reinvestment;
-    mb.dividends += e.dividends;
-    mb.netProfit += netProfit;
-    monthMap.set(e.month, mb);
+    mb.revenue += e.grossRevenue; mb.expenses += totalOpex + e.directCosts; mb.reinvestments += e.reinvestment; mb.dividends += e.dividends; mb.netProfit += netProfit; monthMap.set(e.month, mb);
   }
-
-  if (monthMap.size === 0) {
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    monthMap.set(currentMonth, { month: currentMonth, revenue: totalMonthlyIncome, expenses: totalBurn, reinvestments: 0, dividends: 0, netProfit: netMonthlyCashFlow });
-  }
-
-  const monthlyBreakdown = Array.from(monthMap.values()).sort((a, b) => a.month.localeCompare(b.month));
-  res.json({
-    totalDebt,
-    totalMonthlyDebtPayment,
-    totalMonthlyExpenses,
-    totalMonthlyIncome,
-    currentSavings: profile.currentBalance,
-    currentBalance: profile.currentBalance,
-    netMonthlyCashFlow,
-    financialRunwayMonths: Math.round(financialRunwayMonths * 10) / 10,
-    debtCount: debts.length,
-    crisisMode: profile.crisisMode,
-    totalProjectRevenue,
-    totalProjectNetProfit,
-    totalProjectDividends,
-    monthlyBreakdown,
-  });
+  if (monthMap.size === 0) { const currentMonth = new Date().toISOString().slice(0, 7); monthMap.set(currentMonth, { month: currentMonth, revenue: totalMonthlyIncome, expenses: totalBurn, reinvestments: 0, dividends: 0, netProfit: netMonthlyCashFlow }); }
+  res.json({ totalDebt, totalMonthlyDebtPayment, totalMonthlyExpenses, totalMonthlyIncome, currentSavings: profile.currentBalance, currentBalance: profile.currentBalance, netMonthlyCashFlow, financialRunwayMonths: Math.round(financialRunwayMonths * 10) / 10, debtCount: debts.length, crisisMode: profile.crisisMode, totalProjectRevenue, totalProjectNetProfit, totalProjectDividends, monthlyBreakdown: Array.from(monthMap.values()).sort((a, b) => a.month.localeCompare(b.month)) });
 });
 
-// GET /dashboard/detailed — actual cash movements from the balance ledger.
 router.get("/dashboard/detailed", async (req, res) => {
-  const ownerId = req.user!.id;
-  const now = new Date();
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const sixMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
-
+  const ownerId = req.user!.id; const now = new Date(); const sixMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
   const [profile, transactions, debts, expenses] = await Promise.all([
-    ensureProfile(ownerId),
-    db.select().from(balanceTransactionsTable).where(and(eq(balanceTransactionsTable.ownerId, ownerId), gte(balanceTransactionsTable.createdAt, sixMonthsAgo))).orderBy(desc(balanceTransactionsTable.createdAt)).limit(500),
-    db.select().from(debtsTable).where(eq(debtsTable.ownerId, ownerId)),
-    db.select().from(expensesTable).where(eq(expensesTable.ownerId, ownerId)),
+    ensureProfile(ownerId), db.select().from(balanceTransactionsTable).where(and(eq(balanceTransactionsTable.ownerId, ownerId), gte(balanceTransactionsTable.createdAt, sixMonthsAgo))).orderBy(desc(balanceTransactionsTable.createdAt)).limit(500), db.select().from(debtsTable).where(eq(debtsTable.ownerId, ownerId)), db.select().from(expensesTable).where(eq(expensesTable.ownerId, ownerId)),
   ]);
-
   const debtById = new Map(debts.map(d => [d.id, d.creditorName]));
-  const categoryLabels: Record<string, string> = {
-    housing: "Жильё",
-    food: "Питание",
-    transport: "Транспорт",
-    utilities: "Коммунальные / связь",
-    health: "Здоровье",
-    miscellaneous: "Разное",
-    debt: "Платежи по долгам",
-    income: "Доходы",
-    withdrawal: "Списания",
-    allocation: "Распределение",
-    goals: "Финансовые цели",
-    other: "Прочее",
-  };
-
+  const categoryLabels: Record<string, string> = { housing: "Жильё", food: "Питание", transport: "Транспорт", utilities: "Коммунальные / связь", health: "Здоровье", miscellaneous: "Разное", debt: "Платежи по долгам", income: "Доходы", withdrawal: "Списания", allocation: "Распределение", goals: "Финансовые цели", other: "Прочее" };
   const monthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-  const currentMonth = monthKey(now);
-  const monthRows = new Map<string, { month: string; income: number; expenses: number; net: number }>();
-  const categoryMap = new Map<string, number>();
-  const debtMap = new Map<string, number>();
+  const currentMonth = monthKey(now); const monthRows = new Map<string, { month: string; income: number; expenses: number; net: number }>(); const categoryMap = new Map<string, number>(); const debtMap = new Map<string, number>();
   const recentTransactions = transactions.slice(0, 30).map(tx => {
-    const sourceCategory = tx.type === "expense" ? (tx.category ?? "miscellaneous")
-      : tx.type === "debt_payment" ? "debt"
-      : tx.type === "income" ? "income"
-      : tx.type === "withdrawal" ? "withdrawal"
-      : tx.type === "davlatov_allocation" ? "allocation"
-      : tx.type === "goal_contribution" ? "goals"
-      : tx.category ?? (tx.amount >= 0 ? "income" : "other");
-    const date = tx.createdAt instanceof Date ? tx.createdAt : new Date(tx.createdAt);
-    const month = monthKey(date);
-    const row = monthRows.get(month) ?? { month, income: 0, expenses: 0, net: 0 };
-    if (tx.amount >= 0) row.income += tx.amount;
-    else row.expenses += Math.abs(tx.amount);
-    row.net += tx.amount;
-    monthRows.set(month, row);
+    const sourceCategory = tx.type === "expense" ? (tx.category ?? "miscellaneous") : tx.type === "debt_payment" ? "debt" : tx.type === "income" ? "income" : tx.type === "withdrawal" ? "withdrawal" : tx.type === "davlatov_allocation" ? "allocation" : tx.type === "goal_contribution" ? "goals" : tx.category ?? (tx.amount >= 0 ? "income" : "other");
+    const date = tx.createdAt instanceof Date ? tx.createdAt : new Date(tx.createdAt); const month = monthKey(date); const row = monthRows.get(month) ?? { month, income: 0, expenses: 0, net: 0 };
+    if (tx.amount >= 0) row.income += tx.amount; else row.expenses += Math.abs(tx.amount); row.net += tx.amount; monthRows.set(month, row);
     if (month === currentMonth && tx.amount < 0) categoryMap.set(sourceCategory, (categoryMap.get(sourceCategory) ?? 0) + Math.abs(tx.amount));
-    if (month === currentMonth && tx.type === "debt_payment") {
-      const creditor = debtById.get(tx.sourceId ?? 0) ?? tx.note ?? "Долг";
-      debtMap.set(creditor, (debtMap.get(creditor) ?? 0) + Math.abs(tx.amount));
-    }
-    return {
-      id: tx.id,
-      amount: tx.amount,
-      type: tx.type,
-      category: sourceCategory,
-      categoryLabel: categoryLabels[sourceCategory] ?? sourceCategory,
-      note: tx.note,
-      createdAt: date.toISOString(),
-    };
+    if (month === currentMonth && tx.type === "debt_payment") { const creditor = debtById.get(tx.sourceId ?? 0) ?? tx.note ?? "Долг"; debtMap.set(creditor, (debtMap.get(creditor) ?? 0) + Math.abs(tx.amount)); }
+    return { id: tx.id, amount: tx.amount, type: tx.type, category: sourceCategory, categoryLabel: categoryLabels[sourceCategory] ?? sourceCategory, note: tx.note, createdAt: date.toISOString() };
   });
-
   const normalizedPlannedExpenses = expenses.reduce((sum, e) => sum + monthlyExpenseAmount(e), 0);
-  const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, amount]) => ({ category, label: categoryLabels[category] ?? category, amount: Math.round(amount * 100) / 100 })).sort((a, b) => b.amount - a.amount);
-  const debtPayments = Array.from(debtMap.entries()).map(([creditorName, amount]) => ({ creditorName, amount: Math.round(amount * 100) / 100 })).sort((a, b) => b.amount - a.amount);
-  const monthlyCashFlow = Array.from(monthRows.values()).sort((a, b) => a.month.localeCompare(b.month)).map(row => ({ ...row, income: Math.round(row.income * 100) / 100, expenses: Math.round(row.expenses * 100) / 100, net: Math.round(row.net * 100) / 100 }));
-
-  res.json({
-    currentBalance: profile.currentBalance,
-    currentMonth,
-    currentMonthIncome: Math.round((monthRows.get(currentMonth)?.income ?? 0) * 100) / 100,
-    currentMonthOutflow: Math.round((monthRows.get(currentMonth)?.expenses ?? 0) * 100) / 100,
-    currentMonthNet: Math.round((monthRows.get(currentMonth)?.net ?? 0) * 100) / 100,
-    plannedMonthlyExpenses: Math.round(normalizedPlannedExpenses * 100) / 100,
-    categoryBreakdown,
-    debtPayments,
-    monthlyCashFlow,
-    recentTransactions,
-  });
+  res.json({ currentBalance: profile.currentBalance, currentMonth, currentMonthIncome: Math.round((monthRows.get(currentMonth)?.income ?? 0) * 100) / 100, currentMonthOutflow: Math.round((monthRows.get(currentMonth)?.expenses ?? 0) * 100) / 100, currentMonthNet: Math.round((monthRows.get(currentMonth)?.net ?? 0) * 100) / 100, plannedMonthlyExpenses: Math.round(normalizedPlannedExpenses * 100) / 100, categoryBreakdown: Array.from(categoryMap.entries()).map(([category, amount]) => ({ category, label: categoryLabels[category] ?? category, amount: Math.round(amount * 100) / 100 })).sort((a, b) => b.amount - a.amount), debtPayments: Array.from(debtMap.entries()).map(([creditorName, amount]) => ({ creditorName, amount: Math.round(amount * 100) / 100 })).sort((a, b) => b.amount - a.amount), monthlyCashFlow: Array.from(monthRows.values()).sort((a, b) => a.month.localeCompare(b.month)).map(row => ({ ...row, income: Math.round(row.income * 100) / 100, expenses: Math.round(row.expenses * 100) / 100, net: Math.round(row.net * 100) / 100 })), recentTransactions });
 });
 
-// GET /crisis/simulation
 router.get("/crisis/simulation", async (req, res) => {
-  const [profile, expenses, debts, incomes] = await Promise.all([
-    ensureProfile(req.user!.id),
-    db.select().from(expensesTable).where(eq(expensesTable.ownerId, req.user!.id)),
-    db.select().from(debtsTable).where(eq(debtsTable.ownerId, req.user!.id)),
-    db.select().from(incomesTable).where(eq(incomesTable.ownerId, req.user!.id)),
-  ]);
-
-  const essentialExpenses = expenses.filter(e => e.isEssential);
-  const eliminableExpenses = expenses.filter(e => !e.isEssential);
-  const essentialExpenseTotal = essentialExpenses.reduce((s, e) => s + monthlyExpenseAmount(e), 0);
-  const totalMonthlyDebtPayment = debts.reduce((s, d) => s + d.monthlyPayment, 0);
-  const essentialBurnRate = essentialExpenseTotal + totalMonthlyDebtPayment;
-  const currentBurnRate = expenses.reduce((s, e) => s + monthlyExpenseAmount(e), 0) + totalMonthlyDebtPayment;
-  const weights: Record<string, number> = { HIGH: 1.0, MEDIUM: 0.65, LOW: 0.3 };
-  const monthlyIncome = incomes.reduce((s, i) => s + i.projectedAmount * (weights[i.confidence] ?? 0.5), 0);
-  const runwayMonthsFull = currentBurnRate > 0 ? profile.currentBalance / currentBurnRate : 999;
-  const runwayMonthsCrisis = essentialBurnRate > 0 ? profile.currentBalance / essentialBurnRate : 999;
-  const monthlyShortfall = Math.max(0, essentialBurnRate - monthlyIncome);
-
-  const actionPlan: { priority: number; action: string; monthlySaving: number; description: string }[] = [];
-  let priority = 1;
-  const sortedEliminable = [...eliminableExpenses].sort((a, b) => monthlyExpenseAmount(b) - monthlyExpenseAmount(a));
-  for (const exp of sortedEliminable.slice(0, 5)) {
-    const monthly = monthlyExpenseAmount(exp);
-    actionPlan.push({ priority: priority++, action: `Отказаться от «${exp.name}»`, monthlySaving: monthly, description: `Это необязательная трата (${CATEGORY_RU[exp.category] ?? exp.category}): ${fmtSom(monthly)} в месяц.` });
-  }
-  const highInterestDebts = debts.filter(d => d.interestRate > 15).sort((a, b) => b.interestRate - a.interestRate);
-  for (const debt of highInterestDebts.slice(0, 2)) {
-    const saving = Math.round(debt.monthlyPayment * 0.15 * 100) / 100;
-    actionPlan.push({ priority: priority++, action: `Рефинансировать кредит в «${debt.creditorName}»`, monthlySaving: saving, description: `Высокая ставка ${debt.interestRate}%. Потенциальная экономия около ${fmtSom(saving)} в месяц.` });
-  }
+  const [profile, expenses, debts, incomes] = await Promise.all([ensureProfile(req.user!.id), db.select().from(expensesTable).where(eq(expensesTable.ownerId, req.user!.id)), db.select().from(debtsTable).where(eq(debtsTable.ownerId, req.user!.id)), db.select().from(incomesTable).where(eq(incomesTable.ownerId, req.user!.id))]);
+  const essentialExpenses = expenses.filter(e => e.isEssential); const eliminableExpenses = expenses.filter(e => !e.isEssential); const essentialExpenseTotal = essentialExpenses.reduce((s, e) => s + monthlyExpenseAmount(e), 0); const totalMonthlyDebtPayment = debts.reduce((s, d) => s + d.monthlyPayment, 0); const essentialBurnRate = essentialExpenseTotal + totalMonthlyDebtPayment; const currentBurnRate = expenses.reduce((s, e) => s + monthlyExpenseAmount(e), 0) + totalMonthlyDebtPayment; const weights: Record<string, number> = { HIGH: 1.0, MEDIUM: 0.65, LOW: 0.3 }; const monthlyIncome = incomes.reduce((s, i) => s + i.projectedAmount * (weights[i.confidence] ?? 0.5), 0); const runwayMonthsFull = currentBurnRate > 0 ? profile.currentBalance / currentBurnRate : 999; const runwayMonthsCrisis = essentialBurnRate > 0 ? profile.currentBalance / essentialBurnRate : 999; const monthlyShortfall = Math.max(0, essentialBurnRate - monthlyIncome);
+  const actionPlan: { priority: number; action: string; monthlySaving: number; description: string }[] = []; let priority = 1; const sortedEliminable = [...eliminableExpenses].sort((a, b) => monthlyExpenseAmount(b) - monthlyExpenseAmount(a));
+  for (const exp of sortedEliminable.slice(0, 5)) { const monthly = monthlyExpenseAmount(exp); actionPlan.push({ priority: priority++, action: `Отказаться от «${exp.name}»`, monthlySaving: monthly, description: `Это необязательная трата (${CATEGORY_RU[exp.category] ?? exp.category}): ${fmtSom(monthly)} в месяц.` }); }
+  const highInterestDebts = debts.filter(d => d.interestRate > 15).sort((a, b) => b.interestRate - a.interestRate); for (const debt of highInterestDebts.slice(0, 2)) { const saving = Math.round(debt.monthlyPayment * 0.15 * 100) / 100; actionPlan.push({ priority: priority++, action: `Рефинансировать кредит в «${debt.creditorName}»`, monthlySaving: saving, description: `Высокая ставка ${debt.interestRate}%. Потенциальная экономия около ${fmtSom(saving)} в месяц.` }); }
   if (monthlyShortfall > 0) actionPlan.push({ priority: priority++, action: "Найти дополнительный доход", monthlySaving: monthlyShortfall, description: `Не хватает ${fmtSom(monthlyShortfall)} в месяц для обязательных расходов и платежей.` });
-
-  res.json({
-    essentialBurnRate: Math.round(essentialBurnRate * 100) / 100,
-    currentBurnRate: Math.round(currentBurnRate * 100) / 100,
-    savingsAmount: profile.currentBalance,
-    runwayMonthsFull: Math.round(runwayMonthsFull * 10) / 10,
-    runwayMonthsCrisis: Math.round(runwayMonthsCrisis * 10) / 10,
-    monthlyShortfall: Math.round(monthlyShortfall * 100) / 100,
-    actionPlan,
-    eliminableExpenses,
-  });
+  res.json({ essentialBurnRate: Math.round(essentialBurnRate * 100) / 100, currentBurnRate: Math.round(currentBurnRate * 100) / 100, savingsAmount: profile.currentBalance, runwayMonthsFull: Math.round(runwayMonthsFull * 10) / 10, runwayMonthsCrisis: Math.round(runwayMonthsCrisis * 10) / 10, monthlyShortfall: Math.round(monthlyShortfall * 100) / 100, actionPlan, eliminableExpenses });
 });
 
-const CATEGORY_RU: Record<string, string> = {
-  housing: "жильё", food: "питание", transport: "транспорт",
-  utilities: "коммунальные / связь", health: "здоровье", miscellaneous: "разное",
-};
-
+const CATEGORY_RU: Record<string, string> = { housing: "жильё", food: "питание", transport: "транспорт", utilities: "коммунальные / связь", health: "здоровье", miscellaneous: "разное" };
 export default router;
