@@ -88,7 +88,7 @@ router.post("/debts/:id/payments", async (req, res) => {
     const [updatedDebt] = await tx.update(debtsTable).set({ totalDebt: newBalance, dueDate: nextDueDate }).where(and(eq(debtsTable.id, debtId), eq(debtsTable.ownerId, req.user!.id))).returning();
     const [payment] = await tx.insert(debtPaymentsTable).values({ debtId, ownerId: req.user!.id, amount: actualAmount, principalPaid: roundMoney(principalPaid), interestPaid: roundMoney(interestPaid), paymentType, paidAt, notes }).returning();
     await tx.update(profileTable).set({ currentBalance: roundMoney(profile.currentBalance - actualAmount), updatedAt: new Date() }).where(eq(profileTable.id, profile.id));
-    await tx.insert(balanceTransactionsTable).values({ ownerId: req.user!.id, amount: -actualAmount, type: "debt_payment", sourceId: debtId, sourceType: "debt_payment", note: `${debt.creditorName}: ${paymentType}` });
+    await tx.insert(balanceTransactionsTable).values({ ownerId: req.user!.id, amount: -actualAmount, type: "debt_payment", sourceId: debtId, sourceType: "debt_payment", category: "debt", note: `${debt.creditorName}: ${paymentType}` });
     return { debt: updatedDebt, payment, balance: roundMoney(profile.currentBalance - actualAmount) };
   });
   if (!result) { res.status(404).json({ error: "Debt not found" }); return; }
