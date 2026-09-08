@@ -15,6 +15,7 @@ import financialResilienceRouter from "./financial-resilience";
 import hypothesesRouter from "./hypotheses";
 import advisorRouter from "./advisor";
 import telegramRouter from "./telegram";
+import telegramBookkeepingRouter from "./telegramBookkeeping";
 import authRouter from "./auth";
 import { requireAuth } from "../middlewares/requireAuth";
 
@@ -22,6 +23,7 @@ const router: IRouter = Router();
 router.use(healthRouter);
 router.use(authRouter);
 router.use(telegramRouter);
+router.use(telegramBookkeepingRouter);
 router.use(requireAuth);
 router.use((_req, res, next) => { res.setHeader("Cache-Control", "private, no-store"); next(); });
 router.use(balanceRouter);
