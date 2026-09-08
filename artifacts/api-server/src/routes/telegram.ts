@@ -1,570 +1,223 @@
-import { Router, type Request, type Response } from "express";
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { db, debtsTable, expensesTable, incomesTable, profileTable, telegramWebhookUpdatesTable } from "@workspace/db";
-import { runAdvisorChat } from "./advisor";
-import { logger } from "../lib/logger";
-import {
-  createTelegramLinkToken,
-  getTelegramLinkStatus,
-  linkTelegramChat,
-  ownerIdForTelegramChat,
-  unlinkTelegramChat,
-} from "../services/telegramLink";
+import { Router } from "express";
+import { and, eq, ilike, sql } from "drizzle-orm";
+import { GoogleGenAI } from "@google/genai";
+import { db, debtsTable, debtPaymentsTable, balanceTransactionsTable, expensesTable, incomesTable, profileTable } from "@workspace/db";
+import { requireAuth } from "../middlewares/requireAuth";
+import { createTelegramLinkToken, getTelegramLinkStatus, linkTelegramChat, ownerIdForTelegramChat, unlinkTelegramChat } from "../services/telegramLink";
 
 const router = Router();
-const TELEGRAM_API_TIMEOUT_MS = 8_000;
-const TELEGRAM_QUEUE_MAX_ATTEMPTS = 3;
-const TELEGRAM_QUEUE_RETRY_DELAY_MS = 1_000;
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const PUBLIC_URL = process.env.PUBLIC_APP_URL || process.env.RENDER_EXTERNAL_URL || process.env.REPLIT_APP_URL || "https://arsen-finance.onrender.com";
+const genai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
+const API_BASE = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : null;
 
-type TelegramMessage = {
-  chat?: { id?: number | string; type?: string };
-  text?: unknown;
+const CATEGORY_MAP: Record<string, string> = {
+  еда: "food", продукты: "food", ресторан: "food", кафе: "food", обед: "food", ужин: "food",
+  такси: "transport", транспорт: "transport", бензин: "transport", машина: "transport",
+  аренда: "housing", квартира: "housing", жилье: "housing", жильё: "housing",
+  коммуналка: "utilities", интернет: "utilities", связь: "utilities", телефон: "utilities",
+  здоровье: "health", аптека: "health", врач: "health", лекарства: "health",
 };
+const CATEGORY_LABEL: Record<string, string> = { housing: "Жильё", food: "Питание", transport: "Транспорт", utilities: "Коммунальные / связь", health: "Здоровье", miscellaneous: "Разное", debt: "Платёж по долгу", income: "Доход" };
 
-type TelegramUpdate = {
-  update_id?: number;
-  message?: TelegramMessage;
-};
+async function telegram(method: string, body: Record<string, unknown> = {}) {
+  if (!API_BASE) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+  const response = await fetch(`${API_BASE}/${method}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  return response.json() as Promise<any>;
+}
+async function sendMessage(chatId: string, text: string) { return telegram("sendMessage", { chat_id: chatId, text }); }
+async function typing(chatId: string) { try { await telegram("sendChatAction", { chat_id: chatId, action: "typing" }); } catch {} }
 
-type TelegramApiResponse<T> = {
-  ok: boolean;
-  result?: T;
-  description?: string;
-};
-
-type QueuedTelegramPayload = {
-  chatId: string;
-  chatType: string;
-  text: string;
-};
-
-function botToken() {
-  return process.env.TELEGRAM_BOT_TOKEN?.trim() ?? "";
+function normalize(s: string) { return s.toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/gi, " ").trim(); }
+function lastAmount(text: string) {
+  const matches = text.replace(/\s/g, " ").match(/(?:^|\s)(\d+(?:[.,]\d{1,2})?)(?:\s*(?:сом|с|kgs|kг))?(?=\s|$)/gi) || [];
+  const raw = matches.at(-1)?.match(/\d+(?:[.,]\d{1,2})?/i)?.[0];
+  return raw ? Number(raw.replace(",", ".")) : null;
+}
+function categoryFromText(text: string) {
+  const normalized = normalize(text);
+  for (const [keyword, category] of Object.entries(CATEGORY_MAP)) if (normalized.includes(normalize(keyword))) return category;
+  return "miscellaneous";
+}
+function expenseName(text: string, category: string) {
+  const amount = lastAmount(text);
+  const cleaned = text.replace(/\d+(?:[.,]\d{1,2})?/g, " ").replace(/\b(?:сом|с|kgs|кг)\b/gi, " ").trim();
+  const fallback = CATEGORY_LABEL[category] || "Расход";
+  return cleaned.length > 1 ? cleaned.slice(0, 80) : fallback;
 }
 
-function webhookSecret() {
-  const configured = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
-  if (configured) return configured;
-  const secretMaterial = process.env.SESSION_SECRET?.trim() || botToken();
-  return secretMaterial
-    ? createHash("sha256").update(`arsen-telegram-webhook:${secretMaterial}`).digest("base64url")
-    : "";
+async function ensureBalance(ownerId: string) {
+  const [profile] = await db.select().from(profileTable).where(eq(profileTable.ownerId, ownerId)).limit(1);
+  if (profile) return profile;
+  const [created] = await db.insert(profileTable).values({ ownerId, currentSavings: 0, currentBalance: 0, crisisMode: false }).returning();
+  return created;
 }
 
-function updateEncryptionKey() {
-  const secretMaterial = process.env.SESSION_SECRET?.trim() || botToken();
-  if (!secretMaterial) throw new Error("Telegram update encryption material is not configured");
-  return createHash("sha256").update(`arsen-telegram-update:${secretMaterial}`).digest();
-}
-
-function encryptTelegramPayload(payload: QueuedTelegramPayload) {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", updateEncryptionKey(), iv);
-  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(payload), "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return [iv, tag, ciphertext].map((part) => part.toString("base64url")).join(".");
-}
-
-function decryptTelegramPayload(ciphertext: string): QueuedTelegramPayload {
-  const [ivValue, tagValue, dataValue] = ciphertext.split(".");
-  if (!ivValue || !tagValue || !dataValue) throw new Error("Invalid encrypted Telegram update");
-  const decipher = createDecipheriv("aes-256-gcm", updateEncryptionKey(), Buffer.from(ivValue, "base64url"));
-  decipher.setAuthTag(Buffer.from(tagValue, "base64url"));
-  const plaintext = Buffer.concat([
-    decipher.update(Buffer.from(dataValue, "base64url")),
-    decipher.final(),
-  ]).toString("utf8");
-  const payload = JSON.parse(plaintext) as Partial<QueuedTelegramPayload>;
-  if (typeof payload.chatId !== "string" || typeof payload.chatType !== "string" || typeof payload.text !== "string") {
-    throw new Error("Invalid decrypted Telegram update");
-  }
-  return { chatId: payload.chatId, chatType: payload.chatType, text: payload.text };
-}
-
-function queuedPayloadForUpdate(update: TelegramUpdate): QueuedTelegramPayload | null {
-  const chatId = update.message?.chat?.id;
-  const text = typeof update.message?.text === "string" ? update.message.text : "";
-  if (chatId === undefined || !text) return null;
-  return {
-    chatId: String(chatId),
-    chatType: update.message?.chat?.type ?? "private",
-    text,
-  };
-}
-
-function publicAppUrl() {
-  const value = process.env.REPLIT_APP_URL?.trim().replace(/\/+$/, "");
-  if (!value) throw new Error("REPLIT_APP_URL is not set; publish the app and set its HTTPS URL first");
-  if (!/^https:\/\//i.test(value)) throw new Error("REPLIT_APP_URL must start with https://");
-  return value;
-}
-
-async function telegramApi<T>(method: string, body: Record<string, unknown>) {
-  const token = botToken();
-  if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
-  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TELEGRAM_API_TIMEOUT_MS),
+async function recordExpense(ownerId: string, amount: number, category: string, name: string, note?: string) {
+  const profile = await ensureBalance(ownerId);
+  if (profile.currentBalance < amount) throw new Error(`Недостаточно денег на балансе. Сейчас ${Math.round(profile.currentBalance)} сом.`);
+  const newBalance = Math.round((profile.currentBalance - amount) * 100) / 100;
+  await db.transaction(async tx => {
+    await tx.update(profileTable).set({ currentBalance: newBalance, updatedAt: new Date() }).where(eq(profileTable.id, profile.id));
+    await tx.insert(balanceTransactionsTable).values({ ownerId, amount: -amount, type: "expense", sourceType: "telegram", category, note: note || name });
   });
-  const payload = await response.json() as TelegramApiResponse<T>;
-  if (!response.ok || !payload.ok) {
-    throw new Error(payload.description ?? `Telegram API returned ${response.status}`);
-  }
-  return payload.result;
+  return newBalance;
 }
 
-async function telegramApiGet<T>(method: string, query: Record<string, string>) {
-  const token = botToken();
-  if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
-  const url = new URL(`https://api.telegram.org/bot${token}/${method}`);
-  Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, value));
-  const response = await fetch(url, {
-    method: "GET",
-    signal: AbortSignal.timeout(TELEGRAM_API_TIMEOUT_MS),
+async function recordIncome(ownerId: string, amount: number, source: string) {
+  const profile = await ensureBalance(ownerId);
+  const newBalance = Math.round((profile.currentBalance + amount) * 100) / 100;
+  const month = new Date().toISOString().slice(0, 7);
+  await db.transaction(async tx => {
+    await tx.update(profileTable).set({ currentBalance: newBalance, updatedAt: new Date() }).where(eq(profileTable.id, profile.id));
+    await tx.insert(incomesTable).values({ ownerId, source, projectedAmount: amount, actualAmount: amount, confidence: "HIGH", month, notes: "Добавлено через Telegram" });
+    await tx.insert(balanceTransactionsTable).values({ ownerId, amount, type: "income", sourceType: "telegram", category: "income", note: source });
   });
-  const payload = await response.json() as T;
-  return { status: response.status, payload };
+  return newBalance;
 }
 
-function webhookUrl() {
-  return `${publicAppUrl()}/api/telegram/webhook`;
-}
-
-export async function registerTelegramWebhook() {
-  if (!botToken()) {
-    console.warn("[telegram] TELEGRAM_BOT_TOKEN is missing; webhook registration skipped");
-    return { registered: false, reason: "missing_token" };
-  }
-  const secret = webhookSecret();
-  if (!secret) {
-    console.warn("[telegram] webhook secret material is missing; webhook registration skipped");
-    return { registered: false, reason: "missing_webhook_secret" };
-  }
-  let url: string;
-  try {
-    url = `${publicAppUrl()}/api/telegram/webhook`;
-  } catch (error) {
-    console.warn(`[telegram] ${error instanceof Error ? error.message : String(error)}; webhook registration skipped`);
-    return { registered: false, reason: "missing_https_app_url" };
-  }
-
-  try {
-    const result = await telegramApi<{ url: string; pending_update_count: number }>("setWebhook", {
-      url,
-      allowed_updates: ["message"],
-      ...(secret ? { secret_token: secret } : {}),
-    });
-    console.log(`[telegram] webhook registered: ${url} (pending updates: ${result?.pending_update_count ?? 0})`);
-    return { registered: true, url, pendingUpdateCount: result?.pending_update_count ?? 0 };
-  } catch (error) {
-    console.error("[telegram] webhook registration failed:", error instanceof Error ? error.message : error);
-    return { registered: false, reason: "telegram_api_error" };
-  }
-}
-
-function isAdvisorMessage(text: string) {
-  return !text.startsWith("/");
-}
-
-const EXPENSE_CATEGORIES: Record<string, string> = {
-  еда: "food",
-  питание: "food",
-  продукты: "food",
-  food: "food",
-  транспорт: "transport",
-  такси: "transport",
-  бензин: "transport",
-  transport: "transport",
-  жилье: "housing",
-  жильё: "housing",
-  аренда: "housing",
-  housing: "housing",
-  коммуналка: "utilities",
-  связь: "utilities",
-  utilities: "utilities",
-  здоровье: "health",
-  лекарства: "health",
-  health: "health",
-  разное: "miscellaneous",
-  другое: "miscellaneous",
-  miscellaneous: "miscellaneous",
-};
-
-function parseAmount(text: string) {
-  const normalized = text.replace(/\u00a0/g, " ").trim();
-  const match = normalized.match(/^(?:сумма\s*)?([\d\s]+(?:[,.]\d{1,2})?)\s*(?:сом|kgs?)?$/iu);
-  if (!match) return null;
-  const value = Number(match[1].replace(/\s/g, "").replace(",", "."));
-  return Number.isFinite(value) && value > 0 ? value : null;
-}
-
-function parseLinkToken(text: string) {
-  const match = text.trim().match(/^\/(?:start|link)(?:@\w+)?(?:\s+([A-Za-z0-9-]+))?\s*$/iu);
-  return match ? (match[1]?.trim().toUpperCase() ?? null) : undefined;
-}
-
-function parseTelegramExpense(text: string) {
-  const match = text.match(/^\/?(?:expense|расход)(?:@\w+)?\s+([\d\s.,]+)\s+(\S+)(?:\s+(.+))?\s*$/iu);
-  if (!match) return null;
-  const amount = Number(match[1].replace(/\s/g, "").replace(",", "."));
-  const category = EXPENSE_CATEGORIES[match[2].toLowerCase()];
-  if (!Number.isFinite(amount) || amount <= 0 || !category) return null;
-  return {
-    amount,
-    category,
-    name: match[3]?.trim() || `Расход из Telegram: ${match[2]}`,
-  };
-}
-
-function formatSom(amount: number) {
-  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(amount)} сом`;
-}
-
-function unlinkedMessage() {
-  return [
-    "Этот Telegram-чат ещё не связан с Arsen Finance.",
-    "Откройте «Настройки → Telegram» в веб-приложении, создайте код и отправьте сюда: /link <код>.",
-  ].join("\n");
-}
-
-function linkedHelpMessage() {
-  return [
-    "Telegram подключён к вашему Arsen Finance.",
-    "",
-    "Команды:",
-    "• /status — краткий финансовый статус",
-    "• /expense 450 еда продукты — добавить расход",
-    "• Любой вопрос о деньгах — совет от ИИ",
-  ].join("\n");
-}
-
-const LINK_SUCCESS_REPLY = "✅ Аккаунт успешно привязан! Теперь вы можете записывать расходы и запрашивать финансовые аналитики прямо здесь.";
-const LINK_INVALID_REPLY = "❌ Неверный или истекший код привязки. Сгенерируйте новый код в Настройках веб-приложения.";
-const LINK_FAILURE_REPLY = "⚠️ Не удалось привязать аккаунт из-за временной ошибки. Попробуйте сгенерировать новый код в Настройках веб-приложения.";
-const TELEGRAM_FAILURE_REPLY = "⚠️ Не удалось обработать сообщение из-за временной ошибки. Попробуйте ещё раз.";
-
-async function replyToChat(chatId: number | string, text: string) {
-  return telegramApi("sendMessage", {
-    chat_id: chatId,
-    text,
-    disable_web_page_preview: true,
+async function recordDebtPayment(ownerId: string, creditorQuery: string, amount: number) {
+  const debts = await db.select().from(debtsTable).where(eq(debtsTable.ownerId, ownerId));
+  const q = normalize(creditorQuery);
+  const debt = debts.find(d => normalize(d.creditorName).includes(q) || q.includes(normalize(d.creditorName))) || (debts.length === 1 ? debts[0] : null);
+  if (!debt) throw new Error(`Не нашёл кредит «${creditorQuery}». Напиши точное название из раздела долгов.`);
+  const profile = await ensureBalance(ownerId);
+  if (profile.currentBalance < amount) throw new Error(`Недостаточно денег на балансе. Сейчас ${Math.round(profile.currentBalance)} сом.`);
+  const newDebt = Math.max(0, debt.totalDebt - amount);
+  const newBalance = Math.round((profile.currentBalance - amount) * 100) / 100;
+  await db.transaction(async tx => {
+    await tx.update(profileTable).set({ currentBalance: newBalance, updatedAt: new Date() }).where(eq(profileTable.id, profile.id));
+    await tx.update(debtsTable).set({ totalDebt: newDebt, updatedAt: new Date() }).where(eq(debtsTable.id, debt.id));
+    await tx.insert(debtPaymentsTable).values({ debtId: debt.id, ownerId, amount, principalPaid: amount, interestPaid: 0, paymentType: "manual", paidAt: new Date().toISOString().slice(0, 10), notes: "Добавлено через Telegram" });
+    await tx.insert(balanceTransactionsTable).values({ ownerId, amount: -amount, type: "debt_payment", sourceId: debt.id, sourceType: "debt_payment", category: "debt", note: `Платёж: ${debt.creditorName}` });
   });
+  return { newBalance, debt, newDebt };
 }
 
-function validSetupRequest(req: Request) {
-  const configuredSecret = process.env.TELEGRAM_SETUP_SECRET?.trim()
-    || process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
-  return req.isAuthenticated() || Boolean(configuredSecret && req.header("x-telegram-setup-secret") === configuredSecret);
-}
-
-function authenticatedOwnerId(req: Request, res: Response) {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Authentication required" });
-    return null;
-  }
-  return req.user.id;
-}
-
-function botUsername() {
-  const configured = process.env.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "");
-  return configured && /^[A-Za-z0-9_]{5,}$/.test(configured) ? configured : "arsenfinancebot";
-}
-
-// GET /telegram/link-status — private status for the signed-in web user.
-router.get("/telegram/link-status", async (req, res): Promise<void> => {
-  const ownerId = authenticatedOwnerId(req, res);
-  if (!ownerId) return;
-  res.json(await getTelegramLinkStatus(ownerId));
-});
-
-// POST /telegram/link-token — issue a one-time, short-lived Telegram linking token.
-router.post("/telegram/link-token", async (req, res): Promise<void> => {
-  const ownerId = authenticatedOwnerId(req, res);
-  if (!ownerId) return;
-  const { token, expiresAt } = await createTelegramLinkToken(ownerId);
-  const username = botUsername();
-  res.status(201).json({
-    connected: false,
-    command: `/link ${token}`,
-    deepLink: `https://t.me/${username}?start=${token}`,
-    expiresAt: expiresAt.toISOString(),
+async function parseReceipt(fileId: string, caption?: string) {
+  if (!genai) throw new Error("Для распознавания чеков нужен GEMINI_API_KEY.");
+  const fileResult = await telegram("getFile", { file_id: fileId });
+  const path = fileResult?.result?.file_path;
+  if (!path) throw new Error("Telegram не вернул файл чека.");
+  const imageResponse = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${path}`);
+  if (!imageResponse.ok) throw new Error("Не удалось скачать чек из Telegram.");
+  const buffer = Buffer.from(await imageResponse.arrayBuffer());
+  if (buffer.length > 19 * 1024 * 1024) throw new Error("Фото чека слишком большое.");
+  const response = await genai.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: [
+      { inlineData: { mimeType: "image/jpeg", data: buffer.toString("base64") } },
+      { text: `Распознай этот финансовый чек. Верни только JSON без markdown: {"amount":число,"merchant":строка,"category":"food|transport|housing|utilities|health|miscellaneous","date":"YYYY-MM-DD или null","items":[строка]}. Если сумму определить нельзя, amount=null. Учитывай подпись пользователя: ${caption || "нет"}. Не придумывай сумму.` },
+    ],
+    config: { responseMimeType: "application/json", temperature: 0.1 },
   });
-});
+  const text = (response.text || "").replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  const parsed = JSON.parse(text);
+  if (!Number.isFinite(Number(parsed.amount)) || Number(parsed.amount) <= 0) throw new Error("Не смог уверенно определить итоговую сумму чека.");
+  return { amount: Number(parsed.amount), merchant: String(parsed.merchant || "Чек"), category: CATEGORY_MAP[String(parsed.category || "")] || (CATEGORY_LABEL[parsed.category] ? parsed.category : "miscellaneous"), date: parsed.date || null };
+}
 
-// DELETE /telegram/link — disconnect the signed-in user's Telegram chat.
-router.delete("/telegram/link", async (req, res): Promise<void> => {
-  const ownerId = authenticatedOwnerId(req, res);
-  if (!ownerId) return;
-  res.json(await unlinkTelegramChat(ownerId));
-});
-
-// GET /telegram/set-webhook — manually force Telegram to use the configured public webhook URL.
-router.get("/telegram/set-webhook", async (req, res): Promise<void> => {
-  if (!validSetupRequest(req)) {
-    res.status(401).json({ error: "Telegram setup secret required" });
+async function processText(ownerId: string, chatId: string, text: string) {
+  const normalized = normalize(text);
+  if (/^\/help|^помощь|^help/.test(normalized)) {
+    await sendMessage(chatId, "Я умею:\n• «еда 500» — расход\n• «такси 300» — расход с категорией\n• «оплатил кредит мбанк 3500» — платёж по долгу\n• «получил зп 35000» — доход\n• отправь фото чека — распознаю и занесу автоматически.\n\nСначала подключи Telegram к ARSEN через /telegram в приложении.");
     return;
   }
+  const amount = lastAmount(text);
+  if (!amount || amount <= 0) { await sendMessage(chatId, "Не понял сумму. Пример: «еда 500», «получил зп 35000» или «оплатил кредит мбанк 3500»."); return; }
+
+  const isIncome = /(?:получил|получила|зарплат|зп|аванс|доход|пришли деньги|поступил)/i.test(text);
+  if (isIncome) {
+    const source = /зп|зарплат/i.test(text) ? "Зарплата" : "Доход";
+    const balance = await recordIncome(ownerId, amount, source);
+    await sendMessage(chatId, `✅ Доход занесён\n${source}: +${Math.round(amount)} сом\nБаланс: ${Math.round(balance)} сом`);
+    return;
+  }
+
+  if (/(?:кредит|кредита|кредиту|долг|займ)/i.test(text) && /(?:оплатил|оплата|платеж|платёж|внес|заплатил)/i.test(text)) {
+    const withoutAmount = text.replace(/\d+(?:[.,]\d{1,2})?/g, " ").replace(/\b(?:сом|с)\b/gi, " ").trim();
+    const creditor = withoutAmount.replace(/(?:оплатил|оплата|платеж|платёж|внес|заплатил|кредит|кредита|кредиту|долг|займ)/gi, " ").replace(/\s+/g, " ").trim();
+    const result = await recordDebtPayment(ownerId, creditor || "кредит", amount);
+    await sendMessage(chatId, `✅ Платёж по долгу занесён\n${result.debt.creditorName}: -${Math.round(amount)} сом\nОстаток долга: ${Math.round(result.newDebt)} сом\nБаланс: ${Math.round(result.newBalance)} сом`);
+    return;
+  }
+
+  const category = categoryFromText(text);
+  const name = expenseName(text, category);
+  const balance = await recordExpense(ownerId, amount, category, name);
+  await sendMessage(chatId, `✅ Расход занесён\n${CATEGORY_LABEL[category] || "Разное"}: -${Math.round(amount)} сом\n${name}\nБаланс: ${Math.round(balance)} сом`);
+}
+
+async function processUpdate(update: any) {
+  const message = update?.message;
+  const chatId = message?.chat?.id ? String(message.chat.id) : null;
+  if (!chatId) return { handled: false, reason: "no_chat" };
+  const text = String(message?.text || message?.caption || "").trim();
+
+  if (text.startsWith("/start")) {
+    const token = text.split(/\s+/)[1];
+    if (token) {
+      const result = await linkTelegramChat(token, chatId);
+      if (result.status === "linked") { await sendMessage(chatId, "✅ Telegram подключён к ARSEN. Теперь просто присылай расходы, доходы, платежи по кредитам или фото чеков."); return { handled: true, reason: "linked" }; }
+      if (result.status === "chat_already_linked") { await sendMessage(chatId, "Этот Telegram уже подключён к другому аккаунту ARSEN."); return { handled: true, reason: "already_linked" }; }
+      await sendMessage(chatId, "Ссылка устарела или неверна. Создай новый код подключения в ARSEN."); return { handled: true, reason: "invalid_link" };
+    }
+  }
+
+  const ownerId = await ownerIdForTelegramChat(chatId);
+  if (!ownerId) { await sendMessage(chatId, "🔐 Сначала подключи Telegram к ARSEN. В приложении открой Настройки → Telegram и нажми «Подключить». Затем перейди по ссылке от ARSEN."); return { handled: true, reason: "not_linked" }; }
+
+  await typing(chatId);
+  const photo = Array.isArray(message?.photo) && message.photo.length ? message.photo.at(-1) : null;
+  if (photo?.file_id) {
+    try {
+      const receipt = await parseReceipt(photo.file_id, message.caption);
+      const balance = await recordExpense(ownerId, receipt.amount, receipt.category, receipt.merchant, `Чек: ${receipt.merchant}${receipt.date ? `, ${receipt.date}` : ""}`);
+      await sendMessage(chatId, `🧾 Чек распознан и занесён\n${receipt.merchant}\n${CATEGORY_LABEL[receipt.category] || "Разное"}: -${Math.round(receipt.amount)} сом\nБаланс: ${Math.round(balance)} сом`);
+    } catch (error) { await sendMessage(chatId, `Не смог обработать чек: ${error instanceof Error ? error.message : "неизвестная ошибка"}`); }
+    return { handled: true, reason: "receipt" };
+  }
+
+  if (text) { try { await processText(ownerId, chatId, text); } catch (error) { await sendMessage(chatId, `Не удалось занести операцию: ${error instanceof Error ? error.message : "неизвестная ошибка"}`); } return { handled: true, reason: "text" }; }
+  await sendMessage(chatId, "Пришли текст с суммой или фото чека.");
+  return { handled: true, reason: "unsupported" };
+}
+
+router.post("/telegram/setup", requireAuth, async (_req, res) => {
+  if (!BOT_TOKEN) { res.status(503).json({ registered: false, url: null, error: "TELEGRAM_BOT_TOKEN is not configured" }); return; }
+  const url = `${PUBLIC_URL.replace(/\/$/, "")}/api/telegram/webhook`;
+  const result = await telegram("setWebhook", { url, allowed_updates: ["message"] });
+  const info = await telegram("getWebhookInfo");
+  res.json({ registered: Boolean(result.ok), url, pendingUpdateCount: info?.result?.pending_update_count ?? 0 });
+});
+
+router.post("/telegram/webhook", async (req, res) => {
   try {
-    const configuredSecret = webhookSecret();
-    if (!configuredSecret) {
-      res.status(503).json({ ok: false, description: "Telegram webhook secret material is unavailable" });
-      return;
-    }
-    const configuredWebhookUrl = webhookUrl();
-    const result = await telegramApiGet<TelegramApiResponse<{ url: string }>>("setWebhook", {
-      url: configuredWebhookUrl,
-      secret_token: configuredSecret,
-    });
-    res.status(result.status).json(result.payload);
+    await processUpdate(req.body);
+    res.json({ ok: true, handled: true });
   } catch (error) {
-    console.error("[telegram] manual webhook setup failed:", error instanceof Error ? error.message : error);
-    res.status(502).json({
-      ok: false,
-      description: error instanceof Error ? error.message : "Telegram webhook setup failed",
-    });
+    console.error("Telegram webhook error", error);
+    res.json({ ok: true, handled: false, reason: "processing_error" });
   }
 });
 
-// GET /telegram/status — return Telegram's current webhook configuration.
-router.get("/telegram/status", async (req, res): Promise<void> => {
-  if (!validSetupRequest(req)) {
-    res.status(401).json({ error: "Telegram setup secret required" });
-    return;
-  }
-  try {
-    const result = await telegramApiGet<TelegramApiResponse<unknown>>("getWebhookInfo", {});
-    res.status(result.status).json(result.payload);
-  } catch (error) {
-    console.error("[telegram] webhook status check failed:", error instanceof Error ? error.message : error);
-    res.status(502).json({
-      ok: false,
-      description: error instanceof Error ? error.message : "Telegram webhook status unavailable",
-    });
-  }
+router.get("/telegram/webhook", async (_req, res) => {
+  if (!BOT_TOKEN) { res.status(503).json({ ok: false, error: "TELEGRAM_BOT_TOKEN is not configured" }); return; }
+  res.json(await telegram("getWebhookInfo"));
 });
 
-// POST /telegram/setup-webhook — authenticated admin retry after publishing.
-router.post("/telegram/setup-webhook", async (req, res) => {
-  if (!validSetupRequest(req)) {
-    res.status(401).json({ error: "Telegram setup secret required" });
-    return;
-  }
-  const result = await registerTelegramWebhook();
-  if (!result.registered) {
-    res.status(503).json({
-      error: "Webhook was not registered",
-      reason: result.reason,
-      hint: "Set REPLIT_APP_URL to the published HTTPS domain, then retry.",
-    });
-    return;
-  }
-  res.json(result);
+router.post("/telegram/updates", requireAuth, async (_req, res) => {
+  res.json({ ok: true, message: "Webhook mode is active. Updates are processed immediately." });
 });
 
-async function financialStatusMessage(ownerId: string) {
-  const [profiles, debts, expenses, incomes] = await Promise.all([
-    db.select({ currentSavings: profileTable.currentSavings }).from(profileTable).where(eq(profileTable.ownerId, ownerId)).limit(1),
-    db.select({ totalDebt: debtsTable.totalDebt, monthlyPayment: debtsTable.monthlyPayment }).from(debtsTable).where(eq(debtsTable.ownerId, ownerId)),
-    db.select({ amount: expensesTable.amount }).from(expensesTable).where(eq(expensesTable.ownerId, ownerId)),
-    db.select({ projectedAmount: incomesTable.projectedAmount }).from(incomesTable).where(eq(incomesTable.ownerId, ownerId)),
-  ]);
-  const totalDebt = debts.reduce((sum, debt) => sum + debt.totalDebt, 0);
-  const monthlyDebtPayment = debts.reduce((sum, debt) => sum + debt.monthlyPayment, 0);
-  const monthlyExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const monthlyIncome = incomes.reduce((sum, income) => sum + income.projectedAmount, 0);
-  return [
-    "Ваш финансовый статус:",
-    `Накопления: ${formatSom(profiles[0]?.currentSavings ?? 0)}`,
-    `Долги: ${formatSom(totalDebt)}; платежи: ${formatSom(monthlyDebtPayment)}/мес`,
-    `План расходов: ${formatSom(monthlyExpenses)}/мес`,
-    `План доходов: ${formatSom(monthlyIncome)}/мес`,
-  ].join("\n");
-}
-
-async function processTelegramUpdateInner(update: TelegramUpdate, updateId: number) {
-  const chatId = update?.message?.chat?.id;
-  const text = typeof update?.message?.text === "string" ? update.message.text.trim() : "";
-  if (chatId === undefined || !text) {
-    return;
-  }
-  if (update.message?.chat?.type && update.message.chat.type !== "private") {
-    await replyToChat(chatId, "Для защиты финансовых данных бот работает только в личном чате.");
-    return;
-  }
-
-  const chatIdValue = String(chatId);
-  const linkToken = parseLinkToken(text);
-  if (linkToken !== undefined) {
-    if (!linkToken) {
-      await replyToChat(chatId, LINK_INVALID_REPLY);
-      return;
-    }
-    const result = await linkTelegramChat(linkToken, chatIdValue);
-    const reply = result.status === "linked"
-      ? LINK_SUCCESS_REPLY
-      : result.status === "chat_already_linked"
-        ? "Этот Telegram-чат уже связан с другим аккаунтом. Сначала отключите его в настройках того аккаунта."
-        : LINK_INVALID_REPLY;
-    await replyToChat(chatId, reply);
-    return;
-  }
-
-  const ownerId = await ownerIdForTelegramChat(chatIdValue);
-  if (!ownerId) {
-    await replyToChat(chatId, unlinkedMessage());
-    return;
-  }
-
-  let reply: string;
-  if (/^\/status(?:@\w+)?\s*$/iu.test(text) || /^(?:статус|мой баланс)$/iu.test(text)) {
-    reply = await financialStatusMessage(ownerId);
-  } else {
-    const expense = parseTelegramExpense(text);
-    if (expense) {
-      const [createdExpense] = await db.insert(expensesTable).values({
-        ownerId,
-        ...expense,
-        isEssential: false,
-        emotionalTrigger: "routine",
-        isImpulseBuy: false,
-        telegramUpdateId: updateId,
-      }).onConflictDoNothing().returning({ id: expensesTable.id });
-      reply = createdExpense
-        ? `Расход добавлен: ${expense.name} — ${formatSom(expense.amount)}.`
-        : "Этот расход уже учтён.";
-    } else if (parseAmount(text) !== null) {
-      reply = "Чтобы записать расход, добавьте категорию: /expense 450 еда продукты.";
-    } else if (isAdvisorMessage(text)) {
-      const advice = await runAdvisorChat(text, [], ownerId);
-      reply = advice.responseText;
-    } else {
-      reply = linkedHelpMessage();
-    }
-  }
-  await replyToChat(chatId, reply);
-  console.log(`[telegram] reply sent to chat ${chatId}`);
-}
-
-async function processTelegramUpdate(update: TelegramUpdate, updateId: number) {
-  const chatId = update?.message?.chat?.id;
-  const text = typeof update?.message?.text === "string" ? update.message.text.trim() : "";
-  try {
-    await processTelegramUpdateInner(update, updateId);
-  } catch (error) {
-    const isLinkingFailure = parseLinkToken(text) !== undefined;
-    logger.error({ err: error, updateId }, "[telegram] update processing failed");
-    if (chatId !== undefined) {
-      try {
-        await replyToChat(chatId, isLinkingFailure ? LINK_FAILURE_REPLY : TELEGRAM_FAILURE_REPLY);
-      } catch (replyError) {
-        logger.error({ err: replyError, updateId }, "[telegram] failed to send processing error reply");
-      }
-    }
-    throw error;
-  }
-}
-
-async function processQueuedTelegramUpdate(updateId: number) {
-  const [queued] = await db.update(telegramWebhookUpdatesTable)
-    .set({
-      status: "processing",
-      attempts: sql`${telegramWebhookUpdatesTable.attempts} + 1`,
-      lastError: null,
-    })
-    .where(and(
-      eq(telegramWebhookUpdatesTable.updateId, updateId),
-      inArray(telegramWebhookUpdatesTable.status, ["pending", "failed"]),
-    ))
-    .returning({
-      updateId: telegramWebhookUpdatesTable.updateId,
-      chatId: telegramWebhookUpdatesTable.chatId,
-      chatType: telegramWebhookUpdatesTable.chatType,
-      messageCiphertext: telegramWebhookUpdatesTable.messageCiphertext,
-      attempts: telegramWebhookUpdatesTable.attempts,
-    });
-  if (!queued) return;
-
-  try {
-    const payload = decryptTelegramPayload(queued.messageCiphertext);
-    await processTelegramUpdate({
-      update_id: queued.updateId,
-      message: {
-        chat: { id: payload.chatId, type: payload.chatType },
-        text: payload.text,
-      },
-    }, queued.updateId);
-    await db.update(telegramWebhookUpdatesTable)
-      .set({ status: "succeeded", processedAt: new Date(), lastError: null })
-      .where(eq(telegramWebhookUpdatesTable.updateId, queued.updateId));
-  } catch (error) {
-    const message = error instanceof Error ? error.message.slice(0, 500) : "Telegram update processing failed";
-    await db.update(telegramWebhookUpdatesTable)
-      .set({ status: "failed", lastError: message })
-      .where(eq(telegramWebhookUpdatesTable.updateId, queued.updateId));
-    logger.error({ err: error, updateId: queued.updateId }, "[telegram] queued webhook processing failed");
-    if (queued.attempts < TELEGRAM_QUEUE_MAX_ATTEMPTS) {
-      setTimeout(() => {
-        void processQueuedTelegramUpdate(queued.updateId);
-      }, TELEGRAM_QUEUE_RETRY_DELAY_MS);
-    }
-  }
-}
-
-export async function recoverTelegramWebhookUpdates() {
-  await db.update(telegramWebhookUpdatesTable)
-    .set({ status: "pending" })
-    .where(eq(telegramWebhookUpdatesTable.status, "processing"));
-  const queued = await db.select({ updateId: telegramWebhookUpdatesTable.updateId })
-    .from(telegramWebhookUpdatesTable)
-    .where(and(
-      inArray(telegramWebhookUpdatesTable.status, ["pending", "failed"]),
-      sql`${telegramWebhookUpdatesTable.attempts} < ${TELEGRAM_QUEUE_MAX_ATTEMPTS}`,
-    ))
-    .limit(100);
-  for (const update of queued) {
-    void processQueuedTelegramUpdate(update.updateId);
-  }
-}
-
-// POST /telegram/webhook — Telegram calls this endpoint with each update.
-router.post("/telegram/webhook", async (req, res): Promise<void> => {
-  const expectedSecret = webhookSecret();
-  if (!expectedSecret) {
-    logger.error("[telegram] webhook rejected because secret material is not configured");
-    res.status(503).json({ error: "Telegram webhook secret is not configured" });
-    return;
-  }
-  if (req.header("x-telegram-bot-api-secret-token") !== expectedSecret) {
-    console.warn("[telegram] rejected webhook with invalid secret header");
-    res.status(401).json({ error: "Invalid Telegram webhook secret" });
-    return;
-  }
-
-  const update = req.body as TelegramUpdate;
-  if (!Number.isInteger(update.update_id) || update.update_id === undefined || update.update_id < 0) {
-    res.status(400).json({ error: "Telegram update_id is required" });
-    return;
-  }
-  const payload = queuedPayloadForUpdate(update);
-  if (!payload) {
-    res.status(200).json({ ok: true, accepted: true });
-    return;
-  }
-  const [storedUpdate] = await db.insert(telegramWebhookUpdatesTable)
-    .values({
-      updateId: update.update_id,
-      chatId: payload.chatId,
-      chatType: payload.chatType,
-      messageCiphertext: encryptTelegramPayload(payload),
-    })
-    .onConflictDoNothing()
-    .returning({ updateId: telegramWebhookUpdatesTable.updateId });
-  logger.info({ updateId: update.update_id }, "[telegram] verified webhook update accepted");
-  res.status(200).json({ ok: true, accepted: Boolean(storedUpdate) });
-  void processQueuedTelegramUpdate(update.update_id);
+router.post("/telegram/link-token", requireAuth, async (req, res) => {
+  const result = await createTelegramLinkToken(req.user!.id);
+  const usernameResult = BOT_TOKEN ? await telegram("getMe") : null;
+  const username = usernameResult?.result?.username;
+  res.json({ connected: false, command: `/start ${result.token}`, deepLink: username ? `https://t.me/${username}?start=${result.token}` : `${PUBLIC_URL}/telegram?token=${result.token}`, expiresAt: result.expiresAt.toISOString() });
 });
+
+router.get("/telegram/status", requireAuth, async (req, res) => res.json(await getTelegramLinkStatus(req.user!.id)));
+router.delete("/telegram/link", requireAuth, async (req, res) => res.json(await unlinkTelegramChat(req.user!.id)));
 
 export default router;
