@@ -1,4 +1,5 @@
 export * from "./debts";
+export * from "./debt-payments";
 export * from "./expenses";
 export * from "./incomes";
 export * from "./profile";
