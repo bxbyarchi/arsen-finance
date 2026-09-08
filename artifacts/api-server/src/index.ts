@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { ensureDebtSchema } from "./lib/ensureDebtSchema";
 import { recoverTelegramWebhookUpdates, registerTelegramWebhook } from "./routes/telegram";
 
 const rawPort = process.env.PORT ?? process.env.API_PORT ?? "8080";
@@ -10,13 +11,24 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
+async function start() {
+  try {
+    await ensureDebtSchema();
+  } catch (err) {
+    logger.error({ err }, "Failed to prepare debt schema");
     process.exit(1);
   }
 
-  logger.info({ port }, "Server listening");
-  void registerTelegramWebhook();
-  void recoverTelegramWebhookUpdates();
-});
+  app.listen(port, (err) => {
+    if (err) {
+      logger.error({ err }, "Error listening on port");
+      process.exit(1);
+    }
+
+    logger.info({ port }, "Server listening");
+    void registerTelegramWebhook();
+    void recoverTelegramWebhookUpdates();
+  });
+}
+
+void start();
