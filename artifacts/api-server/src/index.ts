@@ -14,7 +14,7 @@ async function registerTelegramBookkeepingWebhook() {
   const webhookUrl = `${publicUrl.replace(/\/$/, "")}/api/telegram/bookkeeping-webhook`;
   try {
     const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: webhookUrl, allowed_updates: ["message"] }) });
-    const result = await response.json();
+    const result = await response.json() as { ok?: boolean };
     logger.info({ webhookUrl, telegramOk: result?.ok }, "Telegram bookkeeping webhook registration completed");
   } catch (err) { logger.warn({ err }, "Telegram bookkeeping webhook registration failed"); }
 }
