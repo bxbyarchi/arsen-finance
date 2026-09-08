@@ -14,7 +14,7 @@ async function ensureProfile(ownerId: string) {
 router.get("/balance", async (req, res) => {
   const [profile, transactions] = await Promise.all([
     ensureProfile(req.user!.id),
-    db.select().from(balanceTransactionsTable).where(eq(balanceTransactionsTable.ownerId, req.user!.id)).orderBy(desc(balanceTransactionsTable.createdAt)).limit(30),
+    db.select().from(balanceTransactionsTable).where(eq(balanceTransactionsTable.ownerId, req.user!.id)).orderBy(desc(balanceTransactionsTable.createdAt)).limit(100),
   ]);
   res.json({ balance: profile.currentBalance, transactions });
 });
@@ -36,6 +36,7 @@ router.post("/balance/transactions", async (req, res) => {
   const amount = Number(req.body?.amount);
   const type = String(req.body?.type ?? "deposit");
   const note = req.body?.note ? String(req.body.note) : null;
+  const category = req.body?.category ? String(req.body.category) : null;
   if (!Number.isFinite(amount) || amount <= 0 || !["deposit", "withdrawal"].includes(type)) {
     res.status(400).json({ error: "Укажите положительную сумму и тип операции" });
     return;
@@ -46,7 +47,7 @@ router.post("/balance/transactions", async (req, res) => {
   if (newBalance < 0) { res.status(400).json({ error: "Недостаточно денег на балансе" }); return; }
   const result = await db.transaction(async (tx) => {
     const [updated] = await tx.update(profileTable).set({ currentBalance: newBalance, updatedAt: new Date() }).where(eq(profileTable.id, profile.id)).returning();
-    const [transaction] = await tx.insert(balanceTransactionsTable).values({ ownerId: req.user!.id, amount: delta, type, note }).returning();
+    const [transaction] = await tx.insert(balanceTransactionsTable).values({ ownerId: req.user!.id, amount: delta, type, category, note }).returning();
     return { balance: updated.currentBalance, transaction };
   });
   res.status(201).json(result);
@@ -59,7 +60,7 @@ router.get("/balance/distribution", async (req, res) => {
     db.select().from(expensesTable).where(eq(expensesTable.ownerId, req.user!.id)),
   ]);
   const balance = profile.currentBalance;
-  const essentialMonthly = expenses.filter(e => e.isEssential).reduce((s, e) => s + e.amount, 0);
+  const essentialMonthly = expenses.filter(e => e.isEssential).reduce((s, e) => s + (e.frequency === "daily" ? e.amount * 30 : e.amount), 0);
   const debtMinimums = debts.reduce((s, d) => s + d.monthlyPayment, 0);
   const reserveTarget = (essentialMonthly + debtMinimums) * 2;
   const reserve = Math.min(balance, Math.max(0, reserveTarget));
