@@ -6,6 +6,7 @@ import { Route, Switch, Router as WouterRouter } from 'wouter';
 
 import { AppLayout } from '@/components/layout/Shell';
 import Dashboard from '@/pages/Dashboard';
+import CurrentBalanceCard from '@/components/CurrentBalanceCard';
 import Debts from '@/pages/Debts';
 import Expenses from '@/pages/Expenses';
 import Income from '@/pages/Income';
@@ -23,11 +24,15 @@ import { AuthGate } from '@/components/auth/AuthGate';
 
 const queryClient = new QueryClient();
 
+function DashboardHome() {
+  return <div className="space-y-6"><CurrentBalanceCard /><Dashboard /></div>;
+}
+
 function Router() {
   return (
     <AppLayout>
       <Switch>
-        <Route path="/" component={Dashboard} />
+        <Route path="/" component={DashboardHome} />
         <Route path="/debts" component={Debts} />
         <Route path="/expenses" component={Expenses} />
         <Route path="/income" component={Income} />
