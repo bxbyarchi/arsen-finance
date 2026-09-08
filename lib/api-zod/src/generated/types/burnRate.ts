@@ -9,6 +9,7 @@ import type { BurnRateByCategoryItem } from './burnRateByCategoryItem';
 
 export interface BurnRate {
   totalMonthly: number;
+  totalDaily: number;
   essentialTotal: number;
   variableTotal: number;
   byCategory: BurnRateByCategoryItem[];
