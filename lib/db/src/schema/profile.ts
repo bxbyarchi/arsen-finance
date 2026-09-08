@@ -9,6 +9,7 @@ export const profileTable = pgTable(
     id: serial("id").primaryKey(),
     ownerId: text("owner_id").references(() => usersTable.id, { onDelete: "cascade" }),
     currentSavings: real("current_savings").notNull().default(0),
+    currentBalance: real("current_balance").notNull().default(0),
     crisisMode: boolean("crisis_mode").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
