@@ -13,6 +13,7 @@ export interface Expense {
   category: ExpenseCategory;
   name: string;
   amount: number;
+  frequency: 'daily' | 'monthly';
   isEssential: boolean;
   /** @nullable */
   emotionalTrigger?: ExpenseEmotionalTrigger;
