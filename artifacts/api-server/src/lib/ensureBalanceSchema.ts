@@ -19,5 +19,15 @@ export async function ensureBalanceSchema() {
 
     CREATE INDEX IF NOT EXISTS balance_transactions_owner_idx ON balance_transactions(owner_id);
     CREATE INDEX IF NOT EXISTS balance_transactions_source_idx ON balance_transactions(source_type, source_id);
+
+    DO $$
+    BEGIN
+      CREATE TYPE expense_frequency AS ENUM ('daily', 'monthly');
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+    END $$;
+
+    ALTER TABLE expenses
+      ADD COLUMN IF NOT EXISTS frequency expense_frequency NOT NULL DEFAULT 'monthly';
   `);
 }
