@@ -12,7 +12,7 @@ export async function ensureDebtSchema() {
 
     UPDATE debts
       SET original_amount = total_debt
-      WHERE original_amount IS NULL;
+      WHERE original_amount IS NULL OR (original_amount = 0 AND total_debt > 0);
 
     UPDATE debts
       SET term_months = 0
