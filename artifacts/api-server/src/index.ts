@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { ensureDebtSchema } from "./lib/ensureDebtSchema";
+import { ensureBalanceSchema } from "./lib/ensureBalanceSchema";
 import { recoverTelegramWebhookUpdates, registerTelegramWebhook } from "./routes/telegram";
 
 const rawPort = process.env.PORT ?? process.env.API_PORT ?? "8080";
@@ -14,8 +15,9 @@ if (Number.isNaN(port) || port <= 0) {
 async function start() {
   try {
     await ensureDebtSchema();
+    await ensureBalanceSchema();
   } catch (err) {
-    logger.error({ err }, "Failed to prepare debt schema");
+    logger.error({ err }, "Failed to prepare database schema");
     process.exit(1);
   }
 
