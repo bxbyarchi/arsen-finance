@@ -5,921 +5,130 @@
  * Smart Finance & Crisis Manager API
  * OpenAPI spec version: 0.1.0
  */
-export interface TelegramSetupResult {
-  registered: boolean;
-  url?: string;
-  pendingUpdateCount?: number;
-}
-
-export interface TelegramWebhookResult {
-  ok: boolean;
-  handled: boolean;
-  reason?: string;
-}
-
+export interface TelegramSetupResult { registered: boolean; url?: string; pendingUpdateCount?: number; }
+export interface TelegramWebhookResult { ok: boolean; handled: boolean; reason?: string; }
 export type TelegramApiResponseResult = { [key: string]: unknown };
-
-export interface TelegramApiResponse {
-  ok: boolean;
-  result?: TelegramApiResponseResult;
-  description?: string;
-  [key: string]: unknown;
- }
-
-export interface TelegramLinkStatus {
-  connected: boolean;
-}
-
-export interface TelegramLinkToken {
-  connected: boolean;
-  command: string;
-  deepLink: string;
-  expiresAt: string;
-}
-
-export type TelegramUpdateInputMessageChat = {
-  id?: number;
-};
-
-export type TelegramUpdateInputMessage = {
-  chat?: TelegramUpdateInputMessageChat;
-  text?: string;
-};
-
-/**
- * Telegram Update payload
- */
-export interface TelegramUpdateInput {
-  update_id?: number;
-  message?: TelegramUpdateInputMessage;
-}
-
-export interface AuthUser {
-  id: string;
-  /** @nullable */
-  email: string | null;
-  /** @nullable */
-  firstName: string | null;
-  /** @nullable */
-  lastName: string | null;
-  /** @nullable */
-  profileImageUrl: string | null;
-}
-
-export interface AuthUserEnvelope {
-  user: AuthUser | null;
-}
-
-export interface HealthStatus {
-  status: string;
-}
-
-export interface Debt {
-  id: number;
-  creditorName: string;
-  totalDebt: number;
-  monthlyPayment: number;
-  /** Annual interest rate as a percentage (e.g. 18.5 for 18.5%) */
-  interestRate: number;
-  /** ISO date string (YYYY-MM-DD) */
-  dueDate: string;
-  /** @nullable */
-  notes?: string | null;
-  createdAt: string;
-}
-
-export interface DebtInput {
-  creditorName: string;
-  totalDebt: number;
-  monthlyPayment: number;
-  interestRate: number;
-  dueDate: string;
-  notes?: string;
-}
-
-export interface PayoffEntry {
-  debtId: number;
-  creditorName: string;
-  order: number;
-  monthsToPayoff: number;
-  totalInterest: number;
-  totalPaid: number;
-}
-
-export interface PayoffSchedules {
-  snowball: PayoffEntry[];
-  avalanche: PayoffEntry[];
-  snowballTotalMonths: number;
-  avalancheTotalMonths: number;
-  snowballTotalInterest: number;
-  avalancheTotalInterest: number;
-}
-
+export interface TelegramApiResponse { ok: boolean; result?: TelegramApiResponseResult; description?: string; [key: string]: unknown; }
+export interface TelegramLinkStatus { connected: boolean; }
+export interface TelegramLinkToken { connected: boolean; command: string; deepLink: string; expiresAt: string; }
+export type TelegramUpdateInputMessageChat = { id?: number };
+export type TelegramUpdateInputMessage = { chat?: TelegramUpdateInputMessageChat; text?: string; caption?: string; photo?: Array<{ file_id?: string; width?: number; height?: number; file_size?: number }>; };
+export interface TelegramUpdateInput { update_id?: number; message?: TelegramUpdateInputMessage; }
+export interface AuthUser { id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; }
+export interface AuthUserEnvelope { user: AuthUser | null; }
+export interface HealthStatus { status: string; }
+export interface Debt { id: number; creditorName: string; totalDebt: number; monthlyPayment: number; interestRate: number; dueDate: string; notes?: string | null; createdAt: string; }
+export interface DebtInput { creditorName: string; totalDebt: number; monthlyPayment: number; interestRate: number; dueDate: string; notes?: string; }
+export interface PayoffEntry { debtId: number; creditorName: string; order: number; monthsToPayoff: number; totalInterest: number; totalPaid: number; }
+export interface PayoffSchedules { snowball: PayoffEntry[]; avalanche: PayoffEntry[]; snowballTotalMonths: number; avalancheTotalMonths: number; snowballTotalInterest: number; avalancheTotalInterest: number; }
 export type ExpenseCategory = typeof ExpenseCategory[keyof typeof ExpenseCategory];
-
-
-export const ExpenseCategory = {
-  housing: 'housing',
-  food: 'food',
-  transport: 'transport',
-  utilities: 'utilities',
-  health: 'health',
-  miscellaneous: 'miscellaneous',
-} as const;
-
-/**
- * @nullable
- */
+export const ExpenseCategory = { housing: 'housing', food: 'food', transport: 'transport', utilities: 'utilities', health: 'health', miscellaneous: 'miscellaneous' } as const;
 export type ExpenseEmotionalTrigger = typeof ExpenseEmotionalTrigger[keyof typeof ExpenseEmotionalTrigger] | null;
-
-
-export const ExpenseEmotionalTrigger = {
-  routine: 'routine',
-  stress_buying: 'stress_buying',
-  status_validation: 'status_validation',
-  burnout_convenience: 'burnout_convenience',
-} as const;
-
-export interface Expense {
-  id: number;
-  category: ExpenseCategory;
-  name: string;
-  amount: number;
-  isEssential: boolean;
-  /** @nullable */
-  emotionalTrigger?: ExpenseEmotionalTrigger;
-  isImpulseBuy?: boolean;
-  createdAt: string;
-}
-
+export const ExpenseEmotionalTrigger = { routine: 'routine', stress_buying: 'stress_buying', status_validation: 'status_validation', burnout_convenience: 'burnout_convenience' } as const;
+export type ExpenseFrequency = 'daily' | 'monthly';
+export interface Expense { id: number; category: ExpenseCategory; name: string; amount: number; frequency: ExpenseFrequency; isEssential: boolean; emotionalTrigger?: ExpenseEmotionalTrigger; isImpulseBuy?: boolean; createdAt: string; }
 export type ExpenseInputCategory = typeof ExpenseInputCategory[keyof typeof ExpenseInputCategory];
-
-
-export const ExpenseInputCategory = {
-  housing: 'housing',
-  food: 'food',
-  transport: 'transport',
-  utilities: 'utilities',
-  health: 'health',
-  miscellaneous: 'miscellaneous',
-} as const;
-
+export const ExpenseInputCategory = { housing: 'housing', food: 'food', transport: 'transport', utilities: 'utilities', health: 'health', miscellaneous: 'miscellaneous' } as const;
 export type ExpenseInputEmotionalTrigger = typeof ExpenseInputEmotionalTrigger[keyof typeof ExpenseInputEmotionalTrigger];
-
-
-export const ExpenseInputEmotionalTrigger = {
-  routine: 'routine',
-  stress_buying: 'stress_buying',
-  status_validation: 'status_validation',
-  burnout_convenience: 'burnout_convenience',
-} as const;
-
-export interface ExpenseInput {
-  category: ExpenseInputCategory;
-  name: string;
-  amount: number;
-  isEssential: boolean;
-  emotionalTrigger?: ExpenseInputEmotionalTrigger;
-  isImpulseBuy?: boolean;
-}
-
-export type BurnRateByCategoryItem = {
-  category: string;
-  total: number;
-  essentialAmount: number;
-  variableAmount: number;
-};
-
-export interface BurnRate {
-  totalMonthly: number;
-  essentialTotal: number;
-  variableTotal: number;
-  byCategory: BurnRateByCategoryItem[];
-}
-
+export const ExpenseInputEmotionalTrigger = { routine: 'routine', stress_buying: 'stress_buying', status_validation: 'status_validation', burnout_convenience: 'burnout_convenience' } as const;
+export interface ExpenseInput { category: ExpenseInputCategory; name: string; amount: number; frequency: ExpenseFrequency; isEssential: boolean; emotionalTrigger?: ExpenseInputEmotionalTrigger; isImpulseBuy?: boolean; }
+export type BurnRateByCategoryItem = { category: string; total: number; essentialAmount: number; variableAmount: number; };
+export interface BurnRate { totalMonthly: number; totalDaily: number; essentialTotal: number; variableTotal: number; byCategory: BurnRateByCategoryItem[]; }
 export type IncomeConfidence = typeof IncomeConfidence[keyof typeof IncomeConfidence];
-
-
-export const IncomeConfidence = {
-  HIGH: 'HIGH',
-  MEDIUM: 'MEDIUM',
-  LOW: 'LOW',
-} as const;
-
-export interface Income {
-  id: number;
-  source: string;
-  projectedAmount: number;
-  /** @nullable */
-  actualAmount?: number | null;
-  confidence: IncomeConfidence;
-  /** Month in YYYY-MM format */
-  month: string;
-  /** @nullable */
-  notes?: string | null;
-  createdAt: string;
-}
-
+export const IncomeConfidence = { HIGH: 'HIGH', MEDIUM: 'MEDIUM', LOW: 'LOW' } as const;
+export interface Income { id: number; source: string; projectedAmount: number; actualAmount?: number | null; confidence: IncomeConfidence; month: string; notes?: string | null; createdAt: string; }
 export type IncomeInputConfidence = typeof IncomeInputConfidence[keyof typeof IncomeInputConfidence];
-
-
-export const IncomeInputConfidence = {
-  HIGH: 'HIGH',
-  MEDIUM: 'MEDIUM',
-  LOW: 'LOW',
-} as const;
-
-export interface IncomeInput {
-  source: string;
-  projectedAmount: number;
-  actualAmount?: number;
-  confidence: IncomeInputConfidence;
-  month: string;
-  notes?: string;
-}
-
-export type ProjectionSummaryByConfidenceItem = {
-  confidence: string;
-  projected: number;
-  actual: number;
-  count: number;
-};
-
-export interface ProjectionSummary {
-  totalProjected: number;
-  totalActual: number;
-  confidenceWeightedProjected: number;
-  byConfidence: ProjectionSummaryByConfidenceItem[];
-  /** Confidence-weighted income minus total monthly expenses */
-  incomeVsExpenseGap: number;
-}
-
-export interface FinancialProfile {
-  id: number;
-  currentSavings: number;
-  crisisMode: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ProfileUpdate {
-  currentSavings?: number;
-  crisisMode?: boolean;
-}
-
-export interface MonthlyBreakdownEntry {
-  month: string;
-  revenue: number;
-  expenses: number;
-  reinvestments: number;
-  dividends: number;
-  netProfit: number;
-}
-
-export interface DashboardSummary {
-  totalDebt: number;
-  totalMonthlyDebtPayment: number;
-  totalMonthlyExpenses: number;
-  totalMonthlyIncome: number;
-  currentSavings: number;
-  netMonthlyCashFlow: number;
-  /** Months of runway at current burn rate with current savings */
-  financialRunwayMonths: number;
-  debtCount: number;
-  crisisMode: boolean;
-  totalProjectRevenue?: number;
-  totalProjectNetProfit?: number;
-  totalProjectDividends?: number;
-  monthlyBreakdown?: MonthlyBreakdownEntry[];
-}
-
-export interface CrisisActionStep {
-  priority: number;
-  action: string;
-  monthlySaving: number;
-  description: string;
-}
-
-export interface CrisisSimulation {
-  /** Minimum cost of living (essential expenses + minimum debt payments) */
-  essentialBurnRate: number;
-  /** Current total monthly spend */
-  currentBurnRate: number;
-  savingsAmount: number;
-  /** Months at full current burn rate */
-  runwayMonthsFull: number;
-  /** Months surviving at essential-only burn rate */
-  runwayMonthsCrisis: number;
-  /** Monthly income gap that needs to be covered */
-  monthlyShortfall: number;
-  actionPlan: CrisisActionStep[];
-  eliminableExpenses: Expense[];
-}
-
-export interface AIAnalysisRequest {
-  /** Optional focus area for the analysis */
-  focusArea?: string;
-}
-
+export const IncomeInputConfidence = { HIGH: 'HIGH', MEDIUM: 'MEDIUM', LOW: 'LOW' } as const;
+export interface IncomeInput { source: string; projectedAmount: number; actualAmount?: number; confidence: IncomeInputConfidence; month: string; notes?: string; }
+export type ProjectionSummaryByConfidenceItem = { confidence: string; projected: number; actual: number; count: number; };
+export interface ProjectionSummary { totalProjected: number; totalActual: number; confidenceWeightedProjected: number; byConfidence: ProjectionSummaryByConfidenceItem[]; incomeVsExpenseGap: number; }
+export interface FinancialProfile { id: number; currentSavings: number; crisisMode: boolean; createdAt: string; updatedAt: string; }
+export interface ProfileUpdate { currentSavings?: number; crisisMode?: boolean; }
+export interface MonthlyBreakdownEntry { month: string; revenue: number; expenses: number; reinvestments: number; dividends: number; netProfit: number; }
+export interface DashboardSummary { totalDebt: number; totalMonthlyDebtPayment: number; totalMonthlyExpenses: number; totalMonthlyIncome: number; currentSavings: number; currentBalance?: number; netMonthlyCashFlow: number; financialRunwayMonths: number; debtCount: number; crisisMode: boolean; totalProjectRevenue?: number; totalProjectNetProfit?: number; totalProjectDividends?: number; monthlyBreakdown?: MonthlyBreakdownEntry[]; }
+export interface CrisisActionStep { priority: number; action: string; monthlySaving: number; description: string; }
+export interface CrisisSimulation { essentialBurnRate: number; currentBurnRate: number; savingsAmount: number; runwayMonthsFull: number; runwayMonthsCrisis: number; monthlyShortfall: number; actionPlan: CrisisActionStep[]; eliminableExpenses: Expense[]; }
+export interface AIAnalysisRequest { focusArea?: string; }
 export type AIOptimizationUrgency = typeof AIOptimizationUrgency[keyof typeof AIOptimizationUrgency];
-
-
-export const AIOptimizationUrgency = {
-  critical: 'critical',
-  high: 'high',
-  medium: 'medium',
-  low: 'low',
-} as const;
-
-export interface AIOptimization {
-  title: string;
-  description: string;
-  estimatedMonthlySaving: number;
-  urgency: AIOptimizationUrgency;
-}
-
+export const AIOptimizationUrgency = { critical: 'critical', high: 'high', medium: 'medium', low: 'low' } as const;
+export interface AIOptimization { title: string; description: string; estimatedMonthlySaving: number; urgency: AIOptimizationUrgency; }
 export type AIRiskAlertSeverity = typeof AIRiskAlertSeverity[keyof typeof AIRiskAlertSeverity];
-
-
-export const AIRiskAlertSeverity = {
-  critical: 'critical',
-  warning: 'warning',
-  info: 'info',
-} as const;
-
-export interface AIRiskAlert {
-  title: string;
-  description: string;
-  severity: AIRiskAlertSeverity;
-}
-
-export interface AIAnalysisResult {
-  optimizations: AIOptimization[];
-  riskAlerts: AIRiskAlert[];
-  /** Financial health score from 0-100 */
-  overallHealthScore: number;
-  summary: string;
-  analyzedAt: string;
-}
-
-export interface Project {
-  id: number;
-  name: string;
-  /** @nullable */
-  description?: string | null;
-  color: string;
-  createdAt: string;
-}
-
-export interface ProjectInput {
-  name: string;
-  description?: string;
-  color?: string;
-}
-
-export interface ProjectEntry {
-  id: number;
-  projectId: number;
-  month: string;
-  grossRevenue: number;
-  directCosts: number;
-  marketingExpense: number;
-  salaryExpense: number;
-  rentExpense: number;
-  logisticsExpense: number;
-  utilitiesExpense: number;
-  reinvestment: number;
-  dividends: number;
-  /** @nullable */
-  notes?: string | null;
-  createdAt: string;
-}
-
-export interface ProjectEntryInput {
-  month: string;
-  grossRevenue?: number;
-  directCosts?: number;
-  marketingExpense?: number;
-  salaryExpense?: number;
-  rentExpense?: number;
-  logisticsExpense?: number;
-  utilitiesExpense?: number;
-  reinvestment?: number;
-  dividends?: number;
-  notes?: string;
-}
-
-export interface ProjectPnL {
-  id: number;
-  name: string;
-  color: string;
-  totalRevenue: number;
-  totalDirectCosts: number;
-  totalGrossProfit: number;
-  totalOpex: number;
-  totalNetProfit: number;
-  totalReinvestment: number;
-  totalDividends: number;
-  entryCount: number;
-}
-
-export type ProjectsSummaryTotals = {
-  grossRevenue: number;
-  netProfit: number;
-  dividends: number;
-  reinvestment: number;
-};
-
-export interface ProjectsSummary {
-  projects: ProjectPnL[];
-  totals: ProjectsSummaryTotals;
-  monthlyBreakdown: MonthlyBreakdownEntry[];
-}
-
+export const AIRiskAlertSeverity = { critical: 'critical', warning: 'warning', info: 'info' } as const;
+export interface AIRiskAlert { title: string; description: string; severity: AIRiskAlertSeverity; }
+export interface AIAnalysisResult { optimizations: AIOptimization[]; riskAlerts: AIRiskAlert[]; overallHealthScore: number; summary: string; analyzedAt: string; }
+export interface Project { id: number; name: string; description?: string | null; color: string; createdAt: string; }
+export interface ProjectInput { name: string; description?: string; color?: string; }
+export interface ProjectEntry { id: number; projectId: number; month: string; grossRevenue: number; directCosts: number; marketingExpense: number; salaryExpense: number; rentExpense: number; logisticsExpense: number; utilitiesExpense: number; reinvestment: number; dividends: number; notes?: string | null; createdAt: string; }
+export interface ProjectEntryInput { month: string; grossRevenue?: number; directCosts?: number; marketingExpense?: number; salaryExpense?: number; rentExpense?: number; logisticsExpense?: number; utilitiesExpense?: number; reinvestment?: number; dividends?: number; notes?: string; }
+export interface ProjectPnL { id: number; name: string; color: string; totalRevenue: number; totalDirectCosts: number; totalGrossProfit: number; totalOpex: number; totalNetProfit: number; totalReinvestment: number; totalDividends: number; entryCount: number; }
+export type ProjectsSummaryTotals = { grossRevenue: number; netProfit: number; dividends: number; reinvestment: number; };
+export interface ProjectsSummary { projects: ProjectPnL[]; totals: ProjectsSummaryTotals; monthlyBreakdown: MonthlyBreakdownEntry[]; }
 export type DavlatovAllocateRequestSourceType = typeof DavlatovAllocateRequestSourceType[keyof typeof DavlatovAllocateRequestSourceType];
-
-
-export const DavlatovAllocateRequestSourceType = {
-  dividend: 'dividend',
-  personal_income: 'personal_income',
-} as const;
-
-export interface DavlatovAllocateRequest {
-  /** Total amount to distribute */
-  sourceAmount: number;
-  sourceType: DavlatovAllocateRequestSourceType;
-  /** Charity percentage (2.5 to 10). Defaults to 10. */
-  charityPct?: number;
-  notes?: string;
-}
-
-export interface DavlatovAllocation {
-  id: number;
-  sourceType: string;
-  sourceAmount: number;
-  charityPct: number;
-  charityAmt: number;
-  parentsAmt: number;
-  savingsAmt: number;
-  entertainmentAmt: number;
-  largeDreamAmt: number;
-  smallDreamAmt: number;
-  /** @nullable */
-  notes?: string | null;
-  createdAt: string;
-}
-
-export interface SavingsGoal {
-  id: number;
-  title: string;
-  targetAmount: number;
-  targetMonths: number;
-  currentAmount: number;
-  createdAt: string;
-}
-
-export interface SavingsGoalInput {
-  title: string;
-  targetAmount: number;
-  targetMonths: number;
-  currentAmount?: number;
-}
-
+export const DavlatovAllocateRequestSourceType = { dividend: 'dividend', personal_income: 'personal_income' } as const;
+export interface DavlatovAllocateRequest { sourceAmount: number; sourceType: DavlatovAllocateRequestSourceType; charityPct?: number; notes?: string; }
+export interface DavlatovAllocation { id: number; sourceType: string; sourceAmount: number; charityPct: number; charityAmt: number; parentsAmt: number; savingsAmt: number; entertainmentAmt: number; largeDreamAmt: number; smallDreamAmt: number; notes?: string | null; createdAt: string; }
+export interface SavingsGoal { id: number; title: string; targetAmount: number; targetMonths: number; currentAmount: number; createdAt: string; }
+export interface SavingsGoalInput { title: string; targetAmount: number; targetMonths: number; currentAmount?: number; }
 export type TransactionClassificationInputCategory = typeof TransactionClassificationInputCategory[keyof typeof TransactionClassificationInputCategory];
-
-
-export const TransactionClassificationInputCategory = {
-  housing: 'housing',
-  food: 'food',
-  transport: 'transport',
-  utilities: 'utilities',
-  health: 'health',
-  miscellaneous: 'miscellaneous',
-} as const;
-
+export const TransactionClassificationInputCategory = { housing: 'housing', food: 'food', transport: 'transport', utilities: 'utilities', health: 'health', miscellaneous: 'miscellaneous' } as const;
 export type TransactionClassificationInputEmotionalTrigger = typeof TransactionClassificationInputEmotionalTrigger[keyof typeof TransactionClassificationInputEmotionalTrigger];
-
-
-export const TransactionClassificationInputEmotionalTrigger = {
-  routine: 'routine',
-  stress_buying: 'stress_buying',
-  status_validation: 'status_validation',
-  burnout_convenience: 'burnout_convenience',
-} as const;
-
-export interface TransactionClassificationInput {
-  expenseId?: number;
-  category: TransactionClassificationInputCategory;
-  name: string;
-  amount: number;
-  isEssential: boolean;
-  emotionalTrigger?: TransactionClassificationInputEmotionalTrigger;
-  isImpulseBuy?: boolean;
-  merchant?: string;
-  note?: string;
-  occurredAt?: string;
-}
-
+export const TransactionClassificationInputEmotionalTrigger = { routine: 'routine', stress_buying: 'stress_buying', status_validation: 'status_validation', burnout_convenience: 'burnout_convenience' } as const;
+export interface TransactionClassificationInput { expenseId?: number; category: TransactionClassificationInputCategory; name: string; amount: number; isEssential: boolean; emotionalTrigger?: TransactionClassificationInputEmotionalTrigger; isImpulseBuy?: boolean; merchant?: string; note?: string; occurredAt?: string; }
 export type TransactionClassificationResultEmotionalTrigger = typeof TransactionClassificationResultEmotionalTrigger[keyof typeof TransactionClassificationResultEmotionalTrigger];
-
-
-export const TransactionClassificationResultEmotionalTrigger = {
-  routine: 'routine',
-  stress_buying: 'stress_buying',
-  status_validation: 'status_validation',
-  burnout_convenience: 'burnout_convenience',
-} as const;
-
-export interface TransactionClassificationResult {
-  expense: Expense;
-  emotionalTrigger: TransactionClassificationResultEmotionalTrigger;
-  isImpulseBuy: boolean;
-  guidance: string;
-  message: string;
-}
-
+export const TransactionClassificationResultEmotionalTrigger = { routine: 'routine', stress_buying: 'stress_buying', status_validation: 'status_validation', burnout_convenience: 'burnout_convenience' } as const;
+export interface TransactionClassificationResult { expense: Expense; emotionalTrigger: TransactionClassificationResultEmotionalTrigger; isImpulseBuy: boolean; guidance: string; message: string; }
 export type FinancialAutonomyProfileMoneyScriptType = typeof FinancialAutonomyProfileMoneyScriptType[keyof typeof FinancialAutonomyProfileMoneyScriptType];
-
-
-export const FinancialAutonomyProfileMoneyScriptType = {
-  avoidance: 'avoidance',
-  worship: 'worship',
-  status: 'status',
-  vigilance: 'vigilance',
-} as const;
-
-export interface FinancialAutonomyProfile {
-  userId: string;
-  moneyScriptType: FinancialAutonomyProfileMoneyScriptType;
-  riskToleranceIndex: number;
-  autonomyScore: number;
-  updatedAt: string;
-}
-
+export const FinancialAutonomyProfileMoneyScriptType = { avoidance: 'avoidance', worship: 'worship', status: 'status', vigilance: 'vigilance' } as const;
+export interface FinancialAutonomyProfile { userId: string; moneyScriptType: FinancialAutonomyProfileMoneyScriptType; riskToleranceIndex: number; autonomyScore: number; updatedAt: string; }
 export type FinancialAutonomyProfileUpdateMoneyScriptType = typeof FinancialAutonomyProfileUpdateMoneyScriptType[keyof typeof FinancialAutonomyProfileUpdateMoneyScriptType];
-
-
-export const FinancialAutonomyProfileUpdateMoneyScriptType = {
-  avoidance: 'avoidance',
-  worship: 'worship',
-  status: 'status',
-  vigilance: 'vigilance',
-} as const;
-
-export interface FinancialAutonomyProfileUpdate {
-  moneyScriptType?: FinancialAutonomyProfileUpdateMoneyScriptType;
-  riskToleranceIndex?: number;
-}
-
+export const FinancialAutonomyProfileUpdateMoneyScriptType = { avoidance: 'avoidance', worship: 'worship', status: 'status', vigilance: 'vigilance' } as const;
+export interface FinancialAutonomyProfileUpdate { moneyScriptType?: FinancialAutonomyProfileUpdateMoneyScriptType; riskToleranceIndex?: number; }
 export type VaultDocumentDocCategory = typeof VaultDocumentDocCategory[keyof typeof VaultDocumentDocCategory];
-
-
-export const VaultDocumentDocCategory = {
-  bank_account: 'bank_account',
-  tax_file: 'tax_file',
-  contract: 'contract',
-  emergency_plan: 'emergency_plan',
-} as const;
-
-export interface VaultDocument {
-  id: number;
-  docCategory: VaultDocumentDocCategory;
-  title: string;
-  /** @nullable */
-  lastVerifiedAt?: string | null;
-  createdAt: string;
-}
-
+export const VaultDocumentDocCategory = { bank_account: 'bank_account', tax_file: 'tax_file', contract: 'contract', emergency_plan: 'emergency_plan' } as const;
+export interface VaultDocument { id: number; docCategory: VaultDocumentDocCategory; title: string; lastVerifiedAt?: string | null; createdAt: string; }
 export type VaultDocumentInputDocCategory = typeof VaultDocumentInputDocCategory[keyof typeof VaultDocumentInputDocCategory];
-
-
-export const VaultDocumentInputDocCategory = {
-  bank_account: 'bank_account',
-  tax_file: 'tax_file',
-  contract: 'contract',
-  emergency_plan: 'emergency_plan',
-} as const;
-
-export interface VaultDocumentInput {
-  docCategory: VaultDocumentInputDocCategory;
-  title: string;
-  /** Opaque encrypted payload or external secure reference. Never returned by the API. */
-  encryptedPayload: string;
-  lastVerifiedAt?: string;
-}
-
+export const VaultDocumentInputDocCategory = { bank_account: 'bank_account', tax_file: 'tax_file', contract: 'contract', emergency_plan: 'emergency_plan' } as const;
+export interface VaultDocumentInput { docCategory: VaultDocumentInputDocCategory; title: string; encryptedPayload: string; lastVerifiedAt?: string; }
 export type VaultDocumentUpdateDocCategory = typeof VaultDocumentUpdateDocCategory[keyof typeof VaultDocumentUpdateDocCategory];
-
-
-export const VaultDocumentUpdateDocCategory = {
-  bank_account: 'bank_account',
-  tax_file: 'tax_file',
-  contract: 'contract',
-  emergency_plan: 'emergency_plan',
-} as const;
-
-export interface VaultDocumentUpdate {
-  docCategory?: VaultDocumentUpdateDocCategory;
-  title?: string;
-  encryptedPayload?: string;
-  /** @nullable */
-  lastVerifiedAt?: string | null;
-}
-
-export interface VaultCategoryStatus {
-  category: string;
-  present: boolean;
-  verified: boolean;
-  stale: boolean;
-  /** @nullable */
-  lastVerifiedAt: string | null;
-}
-
-export interface VaultSummary {
-  documents: VaultDocument[];
-  autonomyScore: number;
-  warnings: string[];
-  categoryStatus: VaultCategoryStatus[];
-}
-
+export const VaultDocumentUpdateDocCategory = { bank_account: 'bank_account', tax_file: 'tax_file', contract: 'contract', emergency_plan: 'emergency_plan' } as const;
+export interface VaultDocumentUpdate { docCategory?: VaultDocumentUpdateDocCategory; title?: string; encryptedPayload?: string; lastVerifiedAt?: string | null; }
+export interface VaultCategoryStatus { category: string; present: boolean; verified: boolean; stale: boolean; lastVerifiedAt: string | null; }
+export interface VaultSummary { documents: VaultDocument[]; autonomyScore: number; warnings: string[]; categoryStatus: VaultCategoryStatus[]; }
 export type BusinessHypothesisStatus = typeof BusinessHypothesisStatus[keyof typeof BusinessHypothesisStatus];
-
-
-export const BusinessHypothesisStatus = {
-  learning_zone: 'learning_zone',
-  performance_zone: 'performance_zone',
-  archived: 'archived',
-} as const;
-
-/**
- * @nullable
- */
+export const BusinessHypothesisStatus = { learning_zone: 'learning_zone', performance_zone: 'performance_zone', archived: 'archived' } as const;
 export type BusinessHypothesisRiskRating = typeof BusinessHypothesisRiskRating[keyof typeof BusinessHypothesisRiskRating] | null;
-
-
-export const BusinessHypothesisRiskRating = {
-  Low: 'Low',
-  Medium: 'Medium',
-  High: 'High',
-  Barbell_Violation: 'Barbell Violation',
-} as const;
-
-export interface BusinessHypothesis {
-  id: number;
-  title: string;
-  status: BusinessHypothesisStatus;
-  projectedBudget: number;
-  actualRiskImpact: number;
-  expectedMonthlyRevenue: number;
-  expectedMonthlyCosts: number;
-  /** @nullable */
-  stressTestRevenue?: number | null;
-  /** @nullable */
-  stressTestCosts?: number | null;
-  /** @nullable */
-  conservativePaybackMonths?: number | null;
-  /** @nullable */
-  marginOfSafety?: number | null;
-  /** @nullable */
-  riskRating?: BusinessHypothesisRiskRating;
-  /** @nullable */
-  evaluatedAt?: string | null;
-  /** @nullable */
-  keyLessons?: string | null;
-  createdAt: string;
-}
-
+export const BusinessHypothesisRiskRating = { Low: 'Low', Medium: 'Medium', High: 'High', Barbell_Violation: 'Barbell Violation' } as const;
+export interface BusinessHypothesis { id: number; title: string; status: BusinessHypothesisStatus; projectedBudget: number; actualRiskImpact: number; expectedMonthlyRevenue: number; expectedMonthlyCosts: number; stressTestRevenue?: number | null; stressTestCosts?: number | null; conservativePaybackMonths?: number | null; marginOfSafety?: number | null; riskRating?: BusinessHypothesisRiskRating; evaluatedAt?: string | null; keyLessons?: string | null; createdAt: string; }
 export type BusinessHypothesisInputStatus = typeof BusinessHypothesisInputStatus[keyof typeof BusinessHypothesisInputStatus];
-
-
-export const BusinessHypothesisInputStatus = {
-  learning_zone: 'learning_zone',
-  performance_zone: 'performance_zone',
-  archived: 'archived',
-} as const;
-
-export interface BusinessHypothesisInput {
-  title: string;
-  status?: BusinessHypothesisInputStatus;
-  projectedBudget?: number;
-  actualRiskImpact?: number;
-  expectedMonthlyRevenue?: number;
-  expectedMonthlyCosts?: number;
-  keyLessons?: string;
-}
-
+export const BusinessHypothesisInputStatus = { learning_zone: 'learning_zone', performance_zone: 'performance_zone', archived: 'archived' } as const;
+export interface BusinessHypothesisInput { title: string; status?: BusinessHypothesisInputStatus; projectedBudget?: number; actualRiskImpact?: number; expectedMonthlyRevenue?: number; expectedMonthlyCosts?: number; keyLessons?: string; }
 export type BusinessHypothesisUpdateStatus = typeof BusinessHypothesisUpdateStatus[keyof typeof BusinessHypothesisUpdateStatus];
-
-
-export const BusinessHypothesisUpdateStatus = {
-  learning_zone: 'learning_zone',
-  performance_zone: 'performance_zone',
-  archived: 'archived',
-} as const;
-
-export interface BusinessHypothesisUpdate {
-  title?: string;
-  status?: BusinessHypothesisUpdateStatus;
-  projectedBudget?: number;
-  actualRiskImpact?: number;
-  expectedMonthlyRevenue?: number;
-  expectedMonthlyCosts?: number;
-  keyLessons?: string;
-}
-
-export interface HypothesisReflectionInput {
-  worked?: string;
-  failed?: string;
-  adjust?: string;
-  keyLessons?: string;
-}
-
-export interface HypothesisEvaluationInput {
-  /** Existing hypothesis to re-evaluate */
-  hypothesisId?: number;
-  /** Required when evaluating and saving a new hypothesis */
-  title?: string;
-  projectedBudget?: number;
-  expectedMonthlyRevenue?: number;
-  expectedMonthlyCosts?: number;
-}
-
+export const BusinessHypothesisUpdateStatus = { learning_zone: 'learning_zone', performance_zone: 'performance_zone', archived: 'archived' } as const;
+export interface BusinessHypothesisUpdate { title?: string; status?: BusinessHypothesisUpdateStatus; projectedBudget?: number; actualRiskImpact?: number; expectedMonthlyRevenue?: number; expectedMonthlyCosts?: number; keyLessons?: string; }
+export interface HypothesisReflectionInput { worked?: string; failed?: string; adjust?: string; keyLessons?: string; }
+export interface HypothesisEvaluationInput { hypothesisId?: number; title?: string; projectedBudget?: number; expectedMonthlyRevenue?: number; expectedMonthlyCosts?: number; }
 export type HypothesisEvaluationRiskRating = typeof HypothesisEvaluationRiskRating[keyof typeof HypothesisEvaluationRiskRating];
-
-
-export const HypothesisEvaluationRiskRating = {
-  Low: 'Low',
-  Medium: 'Medium',
-  High: 'High',
-  Barbell_Violation: 'Barbell Violation',
-} as const;
-
-export interface HypothesisEvaluation {
-  projectedBudget: number;
-  expectedMonthlyRevenue: number;
-  expectedMonthlyCosts: number;
-  stressTestRevenue: number;
-  stressTestCosts: number;
-  /** @nullable */
-  conservativePaybackMonths: number | null;
-  marginOfSafety: number;
-  riskRating: HypothesisEvaluationRiskRating;
-  riskCapitalLimit: number;
-  isBarbellViolation: boolean;
-}
-
-export interface HypothesisEvaluationResult {
-  hypothesis: BusinessHypothesis;
-  evaluation: HypothesisEvaluation;
-}
-
-export interface PurchaseCheckInput {
-  /** Natural language purchase request */
-  query: string;
-}
-
-export interface PlannedIncome {
-  source: string;
-  amount: number;
-  month: string;
-}
-
+export const HypothesisEvaluationRiskRating = { Low: 'Low', Medium: 'Medium', High: 'High', Barbell_Violation: 'Barbell Violation' } as const;
+export interface HypothesisEvaluation { projectedBudget: number; expectedMonthlyRevenue: number; expectedMonthlyCosts: number; stressTestRevenue: number; stressTestCosts: number; conservativePaybackMonths: number | null; marginOfSafety: number; riskRating: HypothesisEvaluationRiskRating; riskCapitalLimit: number; isBarbellViolation: boolean; }
+export interface HypothesisEvaluationResult { hypothesis: BusinessHypothesis; evaluation: HypothesisEvaluation; }
+export interface PurchaseCheckInput { query: string; }
+export interface PlannedIncome { source: string; amount: number; month: string; }
 export type PurchaseContextMarketDataStatus = typeof PurchaseContextMarketDataStatus[keyof typeof PurchaseContextMarketDataStatus];
-
-
-export const PurchaseContextMarketDataStatus = {
-  live: 'live',
-  cache: 'cache',
-  unavailable: 'unavailable',
-} as const;
-
-export interface PurchaseContext {
-  requestedAmount: number;
-  requestedCategory: string;
-  categoryLabel: string;
-  liquidity: number;
-  upcomingObligations: number;
-  fixedBills: number;
-  debtObligations: number;
-  /** Recorded spending in the category during the current month */
-  categoryActual: number;
-  /** Current monthly budget baseline from expense records */
-  categoryBudget: number;
-  plannedIncome: number;
-  plannedIncomeEntries: PlannedIncome[];
-  safeToSpendNow: number;
-  /** @nullable */
-  earliestIncomeMonth?: string | null;
-  safetyReserveTarget: number;
-  riskBandAvailable: number;
-  postPurchaseCoreReserve: number;
-  barbellSafetyViolation: boolean;
-  /** @nullable */
-  inflationRateAnnual: number | null;
-  /** @nullable */
-  inflationAdjustedCostOfWaiting: number | null;
-  waitingMonths: number;
-  marginOfSafety: number;
-  marketDataStatus: PurchaseContextMarketDataStatus;
-  /** @nullable */
-  marketDataFetchedAt: string | null;
-}
-
+export const PurchaseContextMarketDataStatus = { live: 'live', cache: 'cache', unavailable: 'unavailable' } as const;
+export interface PurchaseContext { requestedAmount: number; requestedCategory: string; categoryLabel: string; liquidity: number; upcomingObligations: number; fixedBills: number; debtObligations: number; categoryActual: number; categoryBudget: number; plannedIncome: number; plannedIncomeEntries: PlannedIncome[]; safeToSpendNow: number; earliestIncomeMonth?: string | null; safetyReserveTarget: number; riskBandAvailable: number; postPurchaseCoreReserve: number; barbellSafetyViolation: boolean; inflationRateAnnual: number | null; inflationAdjustedCostOfWaiting: number | null; waitingMonths: number; marginOfSafety: number; marketDataStatus: PurchaseContextMarketDataStatus; marketDataFetchedAt: string | null; }
 export type PurchaseCheckResultVerdict = typeof PurchaseCheckResultVerdict[keyof typeof PurchaseCheckResultVerdict];
-
-
-export const PurchaseCheckResultVerdict = {
-  YES: 'YES',
-  NO: 'NO',
-  PARTIAL: 'PARTIAL',
-} as const;
-
-export interface PurchaseCheckResult {
-  verdict: PurchaseCheckResultVerdict;
-  /** @nullable */
-  partialAmount?: number | null;
-  reasoning: string;
-  barbellCheck: string;
-  inflationAssessment: string;
-  action: string;
-  /** Formatted answer under 80 words */
-  responseText: string;
-  context: PurchaseContext;
-  isFallback: boolean;
-}
-
+export const PurchaseCheckResultVerdict = { YES: 'YES', NO: 'NO', PARTIAL: 'PARTIAL' } as const;
+export interface PurchaseCheckResult { verdict: PurchaseCheckResultVerdict; partialAmount?: number | null; reasoning: string; barbellCheck: string; inflationAssessment: string; action: string; responseText: string; context: PurchaseContext; isFallback: boolean; }
 export type AdvisorChatHistoryItemRole = typeof AdvisorChatHistoryItemRole[keyof typeof AdvisorChatHistoryItemRole];
-
-
-export const AdvisorChatHistoryItemRole = {
-  user: 'user',
-  assistant: 'assistant',
-} as const;
-
-export interface AdvisorChatHistoryItem {
-  role: AdvisorChatHistoryItemRole;
-  content: string;
-}
-
-export interface AdvisorChatInput {
-  message: string;
-  history?: AdvisorChatHistoryItem[];
-}
-
-export type AdvisorChatContextUpcomingDebtsItem = {
-  creditor: string;
-  amount: number;
-  dueDate: string;
-};
-
+export const AdvisorChatHistoryItemRole = { user: 'user', assistant: 'assistant' } as const;
+export interface AdvisorChatHistoryItem { role: AdvisorChatHistoryItemRole; content: string; }
+export interface AdvisorChatInput { message: string; history?: AdvisorChatHistoryItem[]; }
+export type AdvisorChatContextUpcomingDebtsItem = { creditor: string; amount: number; dueDate: string; };
 export type AdvisorChatContextMarketDataStatus = typeof AdvisorChatContextMarketDataStatus[keyof typeof AdvisorChatContextMarketDataStatus];
-
-
-export const AdvisorChatContextMarketDataStatus = {
-  live: 'live',
-  cache: 'cache',
-  unavailable: 'unavailable',
-} as const;
-
-export interface AdvisorChatContext {
-  liquidity: number;
-  upcomingObligations: number;
-  debtObligations: number;
-  activeDebtCount: number;
-  budgetTotal: number;
-  safetyReserveTarget: number;
-  riskBandAvailable: number;
-  safeToSpendNow: number;
-  upcomingDebts: AdvisorChatContextUpcomingDebtsItem[];
-  marketDataStatus: AdvisorChatContextMarketDataStatus;
-  /** @nullable */
-  inflationRateAnnual: number | null;
-}
-
+export const AdvisorChatContextMarketDataStatus = { live: 'live', cache: 'cache', unavailable: 'unavailable' } as const;
+export interface AdvisorChatContext { liquidity: number; upcomingObligations: number; debtObligations: number; activeDebtCount: number; budgetTotal: number; safetyReserveTarget: number; riskBandAvailable: number; safeToSpendNow: number; upcomingDebts: AdvisorChatContextUpcomingDebtsItem[]; marketDataStatus: AdvisorChatContextMarketDataStatus; inflationRateAnnual: number | null; }
 export type AdvisorChatResultVerdict = typeof AdvisorChatResultVerdict[keyof typeof AdvisorChatResultVerdict];
-
-
-export const AdvisorChatResultVerdict = {
-  YES: 'YES',
-  NO: 'NO',
-  PARTIAL: 'PARTIAL',
-  INFO: 'INFO',
-} as const;
-
-export interface AdvisorChatResult {
-  verdict: AdvisorChatResultVerdict;
-  reasoning: string;
-  action: string;
-  responseText: string;
-  context: AdvisorChatContext;
-  isFallback: boolean;
-}
-
-export type BeginBrowserLoginParams = {
-returnTo?: string;
-};
-
-export type LogoutBrowserSessionParams = {
-returnTo?: string;
-};
-
+export const AdvisorChatResultVerdict = { YES: 'YES', NO: 'NO', PARTIAL: 'PARTIAL', INFO: 'INFO' } as const;
+export interface AdvisorChatResult { verdict: AdvisorChatResultVerdict; reasoning: string; action: string; responseText: string; context: AdvisorChatContext; isFallback: boolean; }
+export type BeginBrowserLoginParams = { returnTo?: string; };
+export type LogoutBrowserSessionParams = { returnTo?: string; };
