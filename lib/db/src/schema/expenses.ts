@@ -10,14 +10,17 @@ export const emotionalTriggerEnum = pgEnum("emotional_trigger", [
   "burnout_convenience",
 ]);
 
+export const expenseFrequencyEnum = pgEnum("expense_frequency", ["daily", "monthly"]);
+
 export const expensesTable = pgTable(
   "expenses",
   {
     id: serial("id").primaryKey(),
     ownerId: text("owner_id").references(() => usersTable.id, { onDelete: "cascade" }),
-    category: text("category").notNull(), // housing, food, transport, utilities, health, miscellaneous
+    category: text("category").notNull(),
     name: text("name").notNull(),
     amount: real("amount").notNull(),
+    frequency: expenseFrequencyEnum("frequency").notNull().default("monthly"),
     isEssential: boolean("is_essential").notNull().default(true),
     emotionalTrigger: emotionalTriggerEnum("emotional_trigger"),
     isImpulseBuy: boolean("is_impulse_buy").notNull().default(false),
