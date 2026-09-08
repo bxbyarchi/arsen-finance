@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { and, eq } from "drizzle-orm";
-import { db, expensesTable, balanceTransactionsTable, profileTable } from "@workspace/db";
+import { db, expensesTable, balanceTransactionsTable } from "@workspace/db";
 
 const router = Router();
 const CATEGORIES = ["housing", "food", "transport", "utilities", "health", "miscellaneous"] as const;
@@ -19,21 +19,14 @@ router.get("/expenses", async (req, res) => {
   res.json(expenses);
 });
 
+// Regular expenses are a planning/forecast layer. They must not move the current balance.
+// Actual spending is recorded separately through balance transactions (including Telegram bookkeeping).
 router.post("/expenses", async (req, res) => {
   const body = req.body as Record<string, unknown>;
   if (!isExpenseInput(body)) { res.status(400).json({ error: "Invalid expense input" }); return; }
   const { category, name, amount, frequency = "monthly", isEssential, emotionalTrigger, isImpulseBuy } = body;
-  const result = await db.transaction(async (tx) => {
-    const [profile] = await tx.select().from(profileTable).where(eq(profileTable.ownerId, req.user!.id));
-    const balance = profile?.currentBalance ?? 0;
-    if (balance < amount) throw new Error("Недостаточно денег на текущем балансе");
-    const [expense] = await tx.insert(expensesTable).values({ ownerId: req.user!.id, category, name: name.trim(), amount, frequency, isEssential, emotionalTrigger: emotionalTrigger ?? null, isImpulseBuy: isImpulseBuy ?? false }).returning();
-    if (profile) await tx.update(profileTable).set({ currentBalance: balance - amount, updatedAt: new Date() }).where(eq(profileTable.id, profile.id));
-    else await tx.insert(profileTable).values({ ownerId: req.user!.id, currentSavings: 0, currentBalance: 0, crisisMode: false });
-    await tx.insert(balanceTransactionsTable).values({ ownerId: req.user!.id, amount: -amount, type: "expense", sourceId: expense.id, sourceType: "expense", category, note: name.trim() });
-    return expense;
-  });
-  res.status(201).json(result);
+  const [expense] = await db.insert(expensesTable).values({ ownerId: req.user!.id, category, name: name.trim(), amount, frequency, isEssential, emotionalTrigger: emotionalTrigger ?? null, isImpulseBuy: isImpulseBuy ?? false }).returning();
+  res.status(201).json(expense);
 });
 
 router.put("/expenses/:id", async (req, res) => {
@@ -41,33 +34,17 @@ router.put("/expenses/:id", async (req, res) => {
   const body = req.body as Record<string, unknown>;
   if (!Number.isInteger(id) || id <= 0 || !isExpenseInput(body)) { res.status(400).json({ error: "Invalid expense input" }); return; }
   const { category, name, amount, frequency = "monthly", isEssential, emotionalTrigger, isImpulseBuy } = body;
-  const result = await db.transaction(async (tx) => {
-    const [existing] = await tx.select().from(expensesTable).where(and(eq(expensesTable.id, id), eq(expensesTable.ownerId, req.user!.id)));
-    const [profile] = await tx.select().from(profileTable).where(eq(profileTable.ownerId, req.user!.id));
-    if (!existing || !profile) return null;
-    const delta = existing.amount - amount;
-    if (profile.currentBalance + delta < 0) throw new Error("Недостаточно денег на текущем балансе");
-    const [expense] = await tx.update(expensesTable).set({ category, name: name.trim(), amount, frequency, isEssential, ...(emotionalTrigger !== undefined ? { emotionalTrigger: emotionalTrigger ?? null } : {}), ...(isImpulseBuy !== undefined ? { isImpulseBuy } : {}) }).where(and(eq(expensesTable.id, id), eq(expensesTable.ownerId, req.user!.id))).returning();
-    await tx.update(profileTable).set({ currentBalance: profile.currentBalance + delta, updatedAt: new Date() }).where(eq(profileTable.id, profile.id));
-    await tx.update(balanceTransactionsTable).set({ amount: -amount, category, note: name.trim() }).where(and(eq(balanceTransactionsTable.sourceType, "expense"), eq(balanceTransactionsTable.sourceId, id), eq(balanceTransactionsTable.ownerId, req.user!.id)));
-    return expense;
-  });
-  if (!result) { res.status(404).json({ error: "Expense not found" }); return; }
-  res.json(result);
+  const [expense] = await db.update(expensesTable).set({ category, name: name.trim(), amount, frequency, isEssential, ...(emotionalTrigger !== undefined ? { emotionalTrigger: emotionalTrigger ?? null } : {}), ...(isImpulseBuy !== undefined ? { isImpulseBuy } : {}) }).where(and(eq(expensesTable.id, id), eq(expensesTable.ownerId, req.user!.id))).returning();
+  if (!expense) { res.status(404).json({ error: "Expense not found" }); return; }
+  res.json(expense);
 });
 
 router.delete("/expenses/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const result = await db.transaction(async (tx) => {
-    const [expense] = await tx.select().from(expensesTable).where(and(eq(expensesTable.id, id), eq(expensesTable.ownerId, req.user!.id)));
-    const [profile] = await tx.select().from(profileTable).where(eq(profileTable.ownerId, req.user!.id));
-    if (!expense || !profile) return null;
-    await tx.delete(expensesTable).where(and(eq(expensesTable.id, id), eq(expensesTable.ownerId, req.user!.id)));
-    await tx.update(profileTable).set({ currentBalance: profile.currentBalance + expense.amount, updatedAt: new Date() }).where(eq(profileTable.id, profile.id));
-    await tx.delete(balanceTransactionsTable).where(and(eq(balanceTransactionsTable.sourceType, "expense"), eq(balanceTransactionsTable.sourceId, id), eq(balanceTransactionsTable.ownerId, req.user!.id)));
-    return expense;
-  });
-  if (!result) { res.status(404).json({ error: "Expense not found" }); return; }
+  const [expense] = await db.delete(expensesTable).where(and(eq(expensesTable.id, id), eq(expensesTable.ownerId, req.user!.id))).returning();
+  if (!expense) { res.status(404).json({ error: "Expense not found" }); return; }
+  // Remove any legacy ledger row created by older versions that incorrectly treated a plan as an actual spend.
+  await db.delete(balanceTransactionsTable).where(and(eq(balanceTransactionsTable.sourceType, "expense"), eq(balanceTransactionsTable.sourceId, id), eq(balanceTransactionsTable.ownerId, req.user!.id)));
   res.status(204).end();
 });
 
