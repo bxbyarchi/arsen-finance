@@ -6,6 +6,7 @@ import expensesRouter from "./expenses";
 import incomesRouter from "./incomes";
 import profileRouter from "./profile";
 import aiRouter from "./ai";
+import aiBalanceRouter from "./ai-balance";
 import projectsRouter from "./projects";
 import davlatovRouter from "./davlatov";
 import goalsRouter from "./goals";
@@ -18,21 +19,18 @@ import authRouter from "./auth";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
-
 router.use(healthRouter);
 router.use(authRouter);
 router.use(telegramRouter);
 router.use(requireAuth);
-router.use((_req, res, next) => {
-  res.setHeader("Cache-Control", "private, no-store");
-  next();
-});
+router.use((_req, res, next) => { res.setHeader("Cache-Control", "private, no-store"); next(); });
 router.use(balanceRouter);
 router.use(debtsRouter);
 router.use(expensesRouter);
 router.use(incomesRouter);
 router.use(profileRouter);
 router.use(aiRouter);
+router.use(aiBalanceRouter);
 router.use(projectsRouter);
 router.use(davlatovRouter);
 router.use(goalsRouter);
@@ -40,5 +38,4 @@ router.use(behavioralRouter);
 router.use(financialResilienceRouter);
 router.use(hypothesesRouter);
 router.use(advisorRouter);
-
 export default router;
