@@ -9,6 +9,7 @@ export * from "./project-entries";
 export * from "./davlatov-allocations";
 export * from "./savings-goals";
 export * from "./tasks";
+export * from "./task-goal-links";
 export * from "./auth";
 export * from "./user-financial-profiles";
 export * from "./business-hypotheses";
